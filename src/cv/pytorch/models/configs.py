@@ -13,7 +13,7 @@ class ModelTrainingConfig:
     device: str = torch.device(
         'cuda' if torch.cuda.is_available() else 'cpu')
 
-    def __init__(self, lr, batch_size, epochs, train_size, test_size):
+    def __init__(self, lr, batch_size, epochs, dataset_size, train_size, test_size):
 
         """
         """
@@ -28,5 +28,6 @@ class ModelTrainingConfig:
                 f"You provided train_size: {train_size} and "
                 f"test_size: {test_size}"
             )
-        self.test_size = test_size
-        self.train_size = train_size
+
+        self.train_size = int(train_size * dataset_size)
+        self.test_size = dataset_size - train_size

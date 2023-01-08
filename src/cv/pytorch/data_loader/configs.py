@@ -1,11 +1,10 @@
-from tokenize import Name
+from typing import Optional
 from typing import  NamedTuple
 from torch.utils.data import Dataset
 from dataclasses import dataclass
-from pathlib import Path
 import pandas as pd
+import numpy as np
 
-CURRENT_ROOT_DIR = str(Path(__file__).parent.parent.parent.parent)
 
 @dataclass(frozen=True)
 class PytorchLibDatasets:
@@ -22,5 +21,6 @@ class PytorchDataset(NamedTuple):
 
 class CustomDataset(NamedTuple):
     dataset_name: str
-    img_directory: str
-    image_labels: pd.DataFrame
+    image_labels: Optional[pd.DataFrame] = None
+    img_directory: Optional[str] = None
+    image_data: Optional[np.array] = None
