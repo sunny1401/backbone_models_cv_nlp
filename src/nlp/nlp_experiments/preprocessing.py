@@ -3,7 +3,7 @@ from typing import List
 from gensim.utils import simple_preprocess
 from nltk.util import everygrams, ngrams
 from nltk.tokenize import RegexpTokenizer
-from src.nlp.stopwords import english_stopwords
+from nlp_experiments.stopwords import english_stopwords
 import warnings
 warnings.simplefilter("ignore", UserWarning)
 import spacy
