@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "nlp-experiments"
+version = "0.0.1"
+description = "NLP Models and preprocessing for experiments"
+authors = ["Sunny Joshi <sunnyjoshi1401@gmail.com>"]
+readme = "README.md"
+packages = [{include = "nlp_experiments"}]
+
+
+[tool.poetry.dev-dependencies]
+black = "^21.6b0"
+poethepoet = "^0.10.0" 
+
+[tool.poetry.dependencies]
+python = "3.8.16"
+spacy = "^3.4.4"
+torch = "*"
+torchvision = "*"
+numpy = "^1.24.1"
+pandas = "^1.5.2"
+matplotlib = "^3.6.3"
+pyldavis = "^3.3.1"
+seaborn = "^0.12.2"
+jupyter = "^1.0.0"
+gensim = "^4.3.0"
+sentence-transformers = "^2.2.2"
+
+
+[build-system]
+requires = ["setuptools>=61.0",  "requests", "packaging>=20.4","poetry-core"]
+build-backend = "poetry.core.masonry.api"
