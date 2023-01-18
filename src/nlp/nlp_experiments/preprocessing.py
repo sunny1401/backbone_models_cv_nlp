@@ -3,7 +3,7 @@ from typing import List
 from gensim.utils import simple_preprocess
 from nltk.util import everygrams, ngrams
 from nltk.tokenize import RegexpTokenizer
-from src.nlp.stopwords import english_stopwords
+from nlp_experiments.stopwords import english_stopwords
 import warnings
 warnings.simplefilter("ignore", UserWarning)
 import spacy
@@ -26,30 +26,19 @@ class DataPreprocessor:
         self.corpus["cleaned"] = self.corpus.raw_text.apply(
             lambda d: self._clean_input_data(d))
 
-
     def lemmatize_text(
         self, 
-        text, 
+        text: str, 
         allowed_tags: List = ['NOUN', 'ADJ', 'VERB', 'ADV'],
         use_pos_tags: bool = True
     ) -> str:
-        tokens = simple_preprocess(text, deacc=True)
-        tokens = self.nlp(" ".join(tokens))
-        if use_pos_tags:
-            lemmatized_sentence = " ".join(
-                [
-                    token.text
-                    for token in tokens 
-                    if token not in english_stopwords and  token.pos_ in allowed_tags
-                ])
-        else:
-            lemmatized_sentence = " ".join(
-                [
-                    token.text
-                    for token in tokens 
-                    if token not in english_stopwords 
-                ])
-        return lemmatized_sentence
+        doc = self.nlp(text)
+        lemmatized_tokens = [
+            token.lemma_ for token in doc 
+            if (not use_pos_tags or token.pos_ in allowed_tags) 
+            and token.lemma_ not in english_stopwords
+        ]
+        return ' '.join(lemmatized_tokens)
 
     def _clean_input_data(self, text):
         text = text.replace('\n',' ')
