@@ -1,6 +1,6 @@
 from typing import Optional, Union, Dict
 import numpy as np
-from src.nlp.preprocessing import DataPreprocessor
+from nlp_experiments.preprocessing import DataPreprocessor
 from sklearn.cluster import KMeans
 from gensim.corpora import Dictionary
 from sentence_transformers import SentenceTransformer
