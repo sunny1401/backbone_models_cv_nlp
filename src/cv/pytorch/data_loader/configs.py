@@ -7,19 +7,19 @@ import numpy as np
 
 
 @dataclass(frozen=True)
-class PytorchLibDatasets:
+class PytorchAvailableDatasets:
     fashion_mnist: "FashionMNIST"
     mnist: "MNIST"
 
 
-class PytorchDataset(NamedTuple):
+class PytorchDatasetConfig(NamedTuple):
     dataset_name: str
     train_dataset: Dataset
     test_datset: Dataset
     dataset_download_location: str
 
 
-class CustomDataset(NamedTuple):
+class CustomDatasetConfig(NamedTuple):
     dataset_name: str
     image_labels: Optional[pd.DataFrame] = None
     img_directory: Optional[str] = None

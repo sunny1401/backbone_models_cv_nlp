@@ -2,16 +2,26 @@ import torch.nn as nn
 import torch.nn.functional as F
 from abc import abstractmethod
 from typing import Tuple, Optional, Dict
+import torch
+from tqdm import tqdm
+
+torch.backends.cudnn.deterministic = True
 
 
 class VanillaCNN(nn.Module):
-    def __init__(self):
+    def __init__(
+        self, 
+        alpha_leaky_relu: float, 
+        batch_norm_flag: bool,
+    ):
         
         super(VanillaCNN, self).__init__()
         self._net = list()
         self._cnn_call_iteration = 0
         self._dropout_call_iteration = 0
         self._linear_call_iteration = 0
+        self._alpha_leaky_relu = alpha_leaky_relu
+        self._batch_norm_flag = batch_norm_flag
         
     def _load_model_from_disk(self, model_path: str):
         pass
@@ -40,7 +50,6 @@ class VanillaCNN(nn.Module):
         # TODO - count number of GPU and use pipeline for more than one
         # TODO - add stride, padding etc
         self._cnn_call_iteration += 1
-        print(input_channels, output_channels, kernel_size)
         conv_layer = nn.Conv2d(
                 in_channels=input_channels, 
                 out_channels=output_channels, kernel_size=kernel_size)
@@ -71,6 +80,12 @@ class VanillaCNN(nn.Module):
             (f"linear{self._linear_call_iteration}", linear_layer)
         )
         setattr(self, f"linear{self._linear_call_iteration}",linear_layer)
+
+    def __get_conv_layer_output_shape(
+        self, kernel, stride, padding, dilation
+    ):
+
+        pass
         
     def forward(self, sample):
         
@@ -95,14 +110,7 @@ class VanillaCNN(nn.Module):
             sample = callable_f(sample)
             if "conv" in call_type:
                 
-                sample = F.relu(sample)
-                
-        return sample  
+                sample = F.leaky_relu(sample, alpha = self._alpha_leaky_relu)
+                if self._batch_norm_flag:
+                    sample = F.batch_norm(sample)
     
-    @abstractmethod
-    def initialize_optimization_parameters(self, lr) -> Dict:
-        """
-        
-        """
-        
-        raise NotImplementedError
