@@ -33,7 +33,7 @@ class FacialKeypointVCNN(VanillaCNN):
         """
 
         super().__init__(
-            leaky_relu_threshold = leaky_relu_threshold
+            leaky_relu_threshold = leaky_relu_threshold,
             add_batch_norm = add_batch_norm
         )
         if dropout_addition_options not in {0, 1, 2, 3, 4, 5}:

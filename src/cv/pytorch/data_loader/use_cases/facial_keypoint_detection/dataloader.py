@@ -2,6 +2,7 @@ import os
 import torch
 import numpy as np
 import pandas as pd
+import copy
 from skimage import io
 from matplotlib import pyplot as plt
 from torchvision import transforms
@@ -16,6 +17,7 @@ from src.cv.pytorch.data_loader.use_cases.facial_keypoint_detection.transforms i
     Resize, 
     ToTensor
 )
+import copy
 
 
 class FacialKeypointDataLoader(CustomDatasetLoader):
@@ -116,7 +118,7 @@ class FacialKeypointDataLoader(CustomDatasetLoader):
             keypoints = np.asarray(
                 self.dataset.image_labels.iloc[idx, :]).astype('float').reshape(-1, 2)
 
-            sample = {"image": image, "facial_landmarks": keypoints}
+            sample = {"image": copy.deepcopy(image), "facial_landmarks": keypoints}
 
         sample = self.transform(sample)
         return sample

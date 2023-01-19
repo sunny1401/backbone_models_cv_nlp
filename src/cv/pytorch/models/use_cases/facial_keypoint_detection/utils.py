@@ -1,5 +1,4 @@
 from matplotlib import pyplot as plt
-import numpy as np
 from typing import List, Dict
 
 def multi_view_image_keypoints(data: List[Dict], number_of_columns: int = 3):

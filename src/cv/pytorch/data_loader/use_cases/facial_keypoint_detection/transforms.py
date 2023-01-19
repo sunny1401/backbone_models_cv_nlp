@@ -1,6 +1,7 @@
 from typing import Dict, Union, Tuple
 import numpy as np
 import cv2
+import torch
 
 class Grayscale:
     
