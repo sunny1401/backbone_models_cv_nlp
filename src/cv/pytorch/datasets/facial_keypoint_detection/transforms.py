@@ -91,9 +91,9 @@ class Resize:
             
         else:
             if isinstance(self._size, int):
-                image.resize(self._size, self._size, 1)
+                image = image.reshape(self._size, self._size, 1)
             else:
-                image.resize(self._size[0], self._size[1], 1)
+                image = image.reshape(self._size[0], self._size[1], 1)
             return {
                 "image": image,
                 "facial_landmarks": key_points

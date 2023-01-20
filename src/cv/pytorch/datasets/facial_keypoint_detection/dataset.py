@@ -2,25 +2,25 @@ import os
 import torch
 import numpy as np
 import pandas as pd
-import copy
+
 from skimage import io
 from matplotlib import pyplot as plt
 from torchvision import transforms
-from src.cv.pytorch.data_loader.dataloader import CustomDatasetLoader
+from src.cv.pytorch.datasets.base_dataset import CustomDataset
 from typing import Optional
-from src.cv.pytorch.data_loader.configs import (
-    CustomDataset,
+from src.cv.pytorch.datasets.configs import (
+    CustomDatasetConfig,
 )
-from src.cv.pytorch.data_loader.use_cases.facial_keypoint_detection.transforms import (
+from src.cv.pytorch.datasets.facial_keypoint_detection.transforms import (
     Grayscale,
     RandomCrop,
     Resize, 
     ToTensor
 )
-import copy
+torch.backends.cudnn.deterministic = True
 
 
-class FacialKeypointDataLoader(CustomDatasetLoader):
+class FacialKeypointDataset(CustomDataset):
 
     def __init__(
         self, 
@@ -81,7 +81,7 @@ class FacialKeypointDataLoader(CustomDatasetLoader):
         image_data = data.pop(self.__image_column)
         self._image_labels = data
 
-        self.dataset = CustomDataset(
+        self.dataset = CustomDatasetConfig(
             dataset_name=dataset_name, 
             image_labels=data, 
             image_data=image_data
@@ -118,9 +118,9 @@ class FacialKeypointDataLoader(CustomDatasetLoader):
             keypoints = np.asarray(
                 self.dataset.image_labels.iloc[idx, :]).astype('float').reshape(-1, 2)
 
-            sample = {"image": copy.deepcopy(image), "facial_landmarks": keypoints}
+            sample = {"image": image, "facial_landmarks": keypoints}
 
-        sample = self.transform(sample)
-        return sample
+        return self.transform(sample)
+
 
     

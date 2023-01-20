@@ -1,23 +1,34 @@
 import torch.nn as nn
 import torch.nn.functional as F
-from abc import abstractmethod
 from typing import Tuple, Optional, Dict
+import torch
+from tqdm import tqdm
+
+torch.backends.cudnn.deterministic = True
 
 
 class VanillaCNN(nn.Module):
-    def __init__(self):
+    def __init__(
+        self, 
+        alpha_leaky_relu: float, 
+        batch_norm_flag: bool,
+        batch_norm_epsilon: float,
+        batch_norm_momentum: float
+    ):
         
         super(VanillaCNN, self).__init__()
         self._net = list()
         self._cnn_call_iteration = 0
         self._dropout_call_iteration = 0
         self._linear_call_iteration = 0
+        self._alpha_leaky_relu = alpha_leaky_relu
+        self._batch_norm_flag = batch_norm_flag
+        self._batch_norm_epsilon = batch_norm_epsilon
+        self._batch_norm_momentum = batch_norm_momentum
         
     def _load_model_from_disk(self, model_path: str):
         pass
     
-    def _save_mode_to_disk(self, model_path: str):
-        pass
         
     def single_cnn_activation_step(
         self, 
@@ -40,7 +51,6 @@ class VanillaCNN(nn.Module):
         # TODO - count number of GPU and use pipeline for more than one
         # TODO - add stride, padding etc
         self._cnn_call_iteration += 1
-        print(input_channels, output_channels, kernel_size)
         conv_layer = nn.Conv2d(
                 in_channels=input_channels, 
                 out_channels=output_channels, kernel_size=kernel_size)
@@ -62,15 +72,24 @@ class VanillaCNN(nn.Module):
         self._net.append((f"dropout{self._dropout_call_iteration}", dropout_layer))
         setattr(self, f"dropout{self._dropout_call_iteration}", dropout_layer)
         
-    def add_linear_layer(self, in_features, out_features, learn_additive_bias=True):
+    def add_linear_layer(self, out_features, learn_additive_bias=True, in_features: Optional[int] = None):
         """
         """
-        linear_layer = nn.Linear(in_features=in_features, out_features=out_features, bias=learn_additive_bias)
+        if not self._linear_call_iteration:
+            linear_layer = nn.LazyLinear(out_features=out_features, bias=learn_additive_bias)
+        else:
+            linear_layer = nn.Linear(in_features=in_features, out_features=out_features, bias=learn_additive_bias)
         self._linear_call_iteration += 1
         self._net.append(
             (f"linear{self._linear_call_iteration}", linear_layer)
         )
         setattr(self, f"linear{self._linear_call_iteration}",linear_layer)
+
+    def _get_conv_layer_output_shape(
+        self, kernel, stride, padding, dilation
+    ):
+
+        pass
         
     def forward(self, sample):
         
@@ -87,22 +106,25 @@ class VanillaCNN(nn.Module):
             )
             
             if flatten_condition:
-                print("Input size before flattening:", sample.size())
                 flattening_done = True
                 
                 sample = sample.view(sample.size(0), -1)
-                
+
             sample = callable_f(sample)
             if "conv" in call_type:
                 
-                sample = F.relu(sample)
-                
-        return sample  
-    
-    @abstractmethod
-    def initialize_optimization_parameters(self, lr) -> Dict:
-        """
-        
-        """
-        
-        raise NotImplementedError
+                sample = F.leaky_relu(sample, negative_slope = self._alpha_leaky_relu)
+                if self._batch_norm_flag:
+                    # inp is shape (N, C, H, W)
+                    n_channels = sample.shape[1]
+                    running_mu = torch.zeros(n_channels).to(sample.get_device()) # zeros are fine for first training iter
+                    running_std = torch.ones(n_channels).to(sample.get_device()) # ones are fine for first training iter
+                    sample = F.batch_norm(
+                        sample, 
+                        running_mu, 
+                        running_std, 
+                        training=True, 
+                        momentum=self._batch_norm_momentum, 
+                        eps=self._batch_norm_epsilon
+                    )
+        return sample

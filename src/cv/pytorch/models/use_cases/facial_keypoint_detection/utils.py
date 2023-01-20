@@ -16,7 +16,7 @@ def multi_view_image_keypoints(data: List[Dict], number_of_columns: int = 3):
     for i in range(length):
         img = data[i]['image']
         plt.subplot(number_of_rows, number_of_columns, positions[i])
-        plt.imshow(img)
+        plt.imshow(img, cmap="gray")
         plt.scatter(
             data[i]["facial_landmarks"][:, 0], 
             data[i]["facial_landmarks"][:, 1], s=20, c='r', marker="*")
