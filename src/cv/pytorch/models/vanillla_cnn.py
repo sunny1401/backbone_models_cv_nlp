@@ -1,6 +1,5 @@
 import torch.nn as nn
 import torch.nn.functional as F
-from abc import abstractmethod
 from typing import Tuple, Optional, Dict
 import torch
 from tqdm import tqdm
@@ -30,8 +29,6 @@ class VanillaCNN(nn.Module):
     def _load_model_from_disk(self, model_path: str):
         pass
     
-    def _save_mode_to_disk(self, model_path: str):
-        pass
         
     def single_cnn_activation_step(
         self, 
@@ -75,10 +72,13 @@ class VanillaCNN(nn.Module):
         self._net.append((f"dropout{self._dropout_call_iteration}", dropout_layer))
         setattr(self, f"dropout{self._dropout_call_iteration}", dropout_layer)
         
-    def add_linear_layer(self, in_features, out_features, learn_additive_bias=True):
+    def add_linear_layer(self, out_features, learn_additive_bias=True, in_features: Optional[int] = None):
         """
         """
-        linear_layer = nn.Linear(in_features=in_features, out_features=out_features, bias=learn_additive_bias)
+        if not self._linear_call_iteration:
+            linear_layer = nn.LazyLinear(out_features=out_features, bias=learn_additive_bias)
+        else:
+            linear_layer = nn.Linear(in_features=in_features, out_features=out_features, bias=learn_additive_bias)
         self._linear_call_iteration += 1
         self._net.append(
             (f"linear{self._linear_call_iteration}", linear_layer)
@@ -118,8 +118,8 @@ class VanillaCNN(nn.Module):
                 if self._batch_norm_flag:
                      # inp is shape (N, C, H, W)
                     n_channels = sample.shape[1]
-                    running_mu = torch.zeros(n_channels) # zeros are fine for first training iter
-                    running_std = torch.ones(n_channels) # ones are fine for first training iter
+                    running_mu = torch.zeros(n_channels).to(sample.get_device()) # zeros are fine for first training iter
+                    running_std = torch.ones(n_channels).to(sample.get_device()) # ones are fine for first training iter
                     sample = F.batch_norm(
                         sample, 
                         running_mu, 
@@ -128,4 +128,4 @@ class VanillaCNN(nn.Module):
                         momentum=self._batch_norm_momentum, 
                         eps=self._batch_norm_epsilon
                     )
-    
+            return sample

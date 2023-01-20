@@ -126,9 +126,15 @@ class FacialKeypointVCNN(VanillaCNN):
             for i in range(linear_layers):
                 
                 current_layer_input = cnn_layers + i
-                self.add_linear_layer(
-                    output_channels[current_layer_input - 1], 
-                    output_channels[current_layer_input]
+                if not i:
+                
+                    self.add_linear_layer( 
+                            out_features=output_channels[current_layer_input]
+                        )
+                else:
+                    self.add_linear_layer(
+                        in_features=output_channels[current_layer_input - 1], 
+                        out_features=output_channels[current_layer_input]
                 )
 
                 if dropout_addition_options in {4, 6}:
