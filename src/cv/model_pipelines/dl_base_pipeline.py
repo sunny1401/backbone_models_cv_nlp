@@ -12,6 +12,11 @@ from tqdm import tqdm
 import torch
 from matplotlib import pyplot as plt
 import os
+import logging
+
+logging.basicConfig(
+    format='%(name)s - %(levelname)s - %(message)s - %(asctime)s', 
+    datefmt='%d-%b-%y %H:%M:%S')
 
 
 class CNNTrainingPipeline(metaclass=ABCMeta):
@@ -146,14 +151,14 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
     def train(self):
         """
         """
-        
-        for epoch in range(self.model_training_config.epochs):
+        self.model.to(self.model_training_config.device)
+        for epoch in tqdm(range(self.model_training_config.epochs), total=self.model_training_config.epochs):
             epoch_train_loss = self._fit_model()
-            print(f"Train Loss for epoch {epoch}: {epoch_train_loss:.4f}")
+            logging.info(f"Train Loss for epoch {epoch}: {epoch_train_loss:.4f}")
             self.train_loss.append(epoch_train_loss)
             if self._number_of_validation_batches:
                 epoch_validation_loss = self._validate_model()
-                print(f"Train Loss for epoch {epoch}: {epoch_validation_loss:.4f}")
+                logging.info(f"Validation Loss for epoch {epoch}: {epoch_validation_loss:.4f}")
                 self.validation_loss.append(epoch_validation_loss)
 
 

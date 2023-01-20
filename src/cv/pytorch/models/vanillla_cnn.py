@@ -106,17 +106,16 @@ class VanillaCNN(nn.Module):
             )
             
             if flatten_condition:
-                print("Input size before flattening:", sample.size())
                 flattening_done = True
                 
                 sample = sample.view(sample.size(0), -1)
-                
+
             sample = callable_f(sample)
             if "conv" in call_type:
                 
                 sample = F.leaky_relu(sample, negative_slope = self._alpha_leaky_relu)
                 if self._batch_norm_flag:
-                     # inp is shape (N, C, H, W)
+                    # inp is shape (N, C, H, W)
                     n_channels = sample.shape[1]
                     running_mu = torch.zeros(n_channels).to(sample.get_device()) # zeros are fine for first training iter
                     running_std = torch.ones(n_channels).to(sample.get_device()) # ones are fine for first training iter
@@ -128,4 +127,4 @@ class VanillaCNN(nn.Module):
                         momentum=self._batch_norm_momentum, 
                         eps=self._batch_norm_epsilon
                     )
-            return sample
+        return sample

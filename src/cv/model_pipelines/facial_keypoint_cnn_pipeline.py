@@ -6,7 +6,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torch
-from tqdm import tqdm
 
 
 class FacialCNNTrainingPipeline(CNNTrainingPipeline):
@@ -37,10 +36,7 @@ class FacialCNNTrainingPipeline(CNNTrainingPipeline):
         self.model.train()
         batch_training_loss: float = 0
         
-        for idx, data in tqdm(
-            enumerate(self._train_dataloader), 
-            total= self._number_of_training_batches
-        ):
+        for idx, data in enumerate(self._train_dataloader):
             image = data["image"].to(self.model_training_config.device)
             keypoints = data["facial_landmarks"].to(self.model_training_config.device)
             # flatten pts
@@ -52,7 +48,10 @@ class FacialCNNTrainingPipeline(CNNTrainingPipeline):
             image = image.reshape(image.shape[0], image.shape[-1], image.shape[1], image.shape[2])
             self.optimizer.zero_grad()
             outputs = self.model(image.to(self.model_training_config.device))
-            loss = self.criterion(outputs, keypoints)
+            loss = self.criterion(
+                outputs.to(self.model_training_config.device), 
+                keypoints.to(self.model_training_config.device)
+            )
             batch_training_loss += loss.item()
             loss.backward()
             self.optimizer.step()
@@ -63,14 +62,9 @@ class FacialCNNTrainingPipeline(CNNTrainingPipeline):
     def _validate_model(self):
         batch_validation_loss: float = 0
         self.model.eval()
-        counter: int = 0
         with torch.no_grad():
 
-            for idx, data in tqdm(
-                enumerate(self._validation_dataloader),
-                total=self._number_of_validation_batches
-            ):
-                counter += 1
+            for idx, data in enumerate(self._validation_dataloader):
                 image = data["image"].to(self.model_training_config.device)
                 keypoints = data["facial_landmarks"].to(self.model_training_config.device)
                 # flatten pts
@@ -80,10 +74,11 @@ class FacialCNNTrainingPipeline(CNNTrainingPipeline):
                 image = image.type(torch.FloatTensor)
                  # inp is shape (N, C, H, W)
                 image = image.reshape(image.shape[0], image.shape[-1], image.shape[1], image.shape[2])
-                outputs = self.model(image)
-                loss = self.criterion(outputs, keypoints)
+                outputs = self.model(image.to(self.model_training_config.device))
+                loss = self.criterion(
+                    outputs.to(self.model_training_config.device), 
+                    keypoints.to(self.model_training_config.device))
                 batch_validation_loss += loss.item()
-            print(idx, counter)
 
-        validation_loss = batch_validation_loss/counter
+        validation_loss = batch_validation_loss/idx + 1
         return validation_loss
