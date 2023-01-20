@@ -12,21 +12,24 @@ from tqdm import tqdm
 class FacialCNNTrainingPipeline(CVTrainingPipeline):
 
 
-    def __init__(self, dataset: Dataset, model_training_config: Dict, model_data_config: Dict, model_initialization_params: Dict = None):
+    def __init__(self, 
+        dataset: Dataset, 
+        model_training_config: Dict, 
+        model_data_config: Dict, 
+        model_initialization_params: Dict = None
+    ):
           super().__init__(dataset, model_training_config, model_data_config, model_initialization_params)
 
     def initialize_optimization_parameters(self, lr=0.0005) -> Dict:
-        
-        optimization_functions = dict()
-        optimization_functions["criterion"] = nn.MSELoss()
-        optimization_functions["optimizer"] = optim.Adam(
-            self.parameters(), lr=lr
+        criterion = nn.MSELoss()
+        optimizer = optim.Adam(
+            self.model.parameters(), lr=lr
         )
         
-        return optimization_functions
+        return optimizer, criterion
 
     def __initialize_model(self, model_params):
-        model = self.__initialize_model(**model_params)
+        model = FacialKeypointVCNN(**model_params)
         return model
 
     def __validate_model(self):

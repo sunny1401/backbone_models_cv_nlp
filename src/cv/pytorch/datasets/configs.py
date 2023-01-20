@@ -8,8 +8,8 @@ import numpy as np
 
 @dataclass(frozen=True)
 class PytorchAvailableDatasets:
-    fashion_mnist: "FashionMNIST"
-    mnist: "MNIST"
+    fashion_mnist: str = "FashionMNIST"
+    mnist: str = "MNIST"
 
 
 class PytorchDatasetConfig(NamedTuple):
