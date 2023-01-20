@@ -40,5 +40,7 @@ class ModelTrainingConfig:
     epochs: int
     add_batch_norm: bool = True
     alpha_leaky_relu: float = 0.1
+    batch_norm_epsilon: float = 1e-05 
+    batch_norm_momentum: float = 0.1
     device: str = torch.device(
         'cuda' if torch.cuda.is_available() else 'cpu')

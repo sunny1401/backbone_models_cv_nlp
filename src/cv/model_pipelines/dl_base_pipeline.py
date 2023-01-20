@@ -14,24 +14,38 @@ from matplotlib import pyplot as plt
 import os
 
 
-torch.backends.cudnn.deterministic = True
-class CVTrainingPipeline(ABCMeta):
+class CNNTrainingPipeline(metaclass=ABCMeta):
 
     def __init__(
         self, 
         dataset: Dataset, 
         model_training_config: Dict, 
         model_data_config: Dict,
-        model_initialization_params: Dict = None,
+        model_initialization_params: Dict,
     ):
         
-        self.model = self.__initialize_model(
-            model_initialization_params
-        )
-        self.__set_random_seed()
         self.dataset = dataset
         self.model_training_config = ModelTrainingConfig(**model_training_config)
         self.model_data_config = ModelDataConfig(**model_data_config)
+        self.__set_random_seed()
+        
+        required_non_essential_arguments = {
+            "add_batch_norm", 
+            "alpha_leaky_relu",
+            "batch_norm_epsilon",
+            "batch_norm_momentum"
+        }
+
+        for key in required_non_essential_arguments:
+            if key not in model_initialization_params:
+                model_initialization_params[key] = getattr(
+                    self.model_training_config, key
+                )
+
+        self.model = self._initialize_model(
+            model_params=model_initialization_params,
+            device=self.model_training_config.device
+        )
 
         self._train_dataloader, self._validation_dataloader = self.__get_dataloader()
         self.optimizer, self.criterion = self.initialize_optimization_parameters(
@@ -63,7 +77,7 @@ class CVTrainingPipeline(ABCMeta):
             torch.backends.cudnn.benchmark = False
 
     @abstractmethod
-    def __initialize_model(self, model_params):
+    def _initialize_model(self, model_params: Dict, device: str):
         pass
 
         raise NotImplementedError
@@ -112,18 +126,19 @@ class CVTrainingPipeline(ABCMeta):
         
         return train_dataloader, validation_dataloader
 
-    # number_of_batches = int(len(self.dataset))
     @abstractmethod
-    def __fit_model(self):
+    def _fit_model(self):
         """
+        Function to fit the model to training data
         
         """
         
         raise NotImplementedError
 
     @abstractmethod
-    def __validate_model(self):
+    def _validate_model(self):
         """
+        Function to evaluate model on vlidation data is available
         """
         raise NotImplementedError
 
@@ -132,12 +147,12 @@ class CVTrainingPipeline(ABCMeta):
         """
         """
         
-        for epoch in self.model_training_config.epochs:
-            epoch_train_loss = self.__fit_model()
+        for epoch in range(self.model_training_config.epochs):
+            epoch_train_loss = self._fit_model()
             print(f"Train Loss for epoch {epoch}: {epoch_train_loss:.4f}")
             self.train_loss.append(epoch_train_loss)
             if self._number_of_validation_batches:
-                epoch_validation_loss = self.__validate_model()
+                epoch_validation_loss = self._validate_model()
                 print(f"Train Loss for epoch {epoch}: {epoch_validation_loss:.4f}")
                 self.validation_loss.append(epoch_validation_loss)
 

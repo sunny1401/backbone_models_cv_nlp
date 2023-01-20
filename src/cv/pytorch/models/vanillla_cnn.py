@@ -13,6 +13,8 @@ class VanillaCNN(nn.Module):
         self, 
         alpha_leaky_relu: float, 
         batch_norm_flag: bool,
+        batch_norm_epsilon: float,
+        batch_norm_momentum: float
     ):
         
         super(VanillaCNN, self).__init__()
@@ -22,6 +24,8 @@ class VanillaCNN(nn.Module):
         self._linear_call_iteration = 0
         self._alpha_leaky_relu = alpha_leaky_relu
         self._batch_norm_flag = batch_norm_flag
+        self._batch_norm_epsilon = batch_norm_epsilon
+        self._batch_norm_momentum = batch_norm_momentum
         
     def _load_model_from_disk(self, model_path: str):
         pass
@@ -81,7 +85,7 @@ class VanillaCNN(nn.Module):
         )
         setattr(self, f"linear{self._linear_call_iteration}",linear_layer)
 
-    def __get_conv_layer_output_shape(
+    def _get_conv_layer_output_shape(
         self, kernel, stride, padding, dilation
     ):
 
@@ -110,7 +114,18 @@ class VanillaCNN(nn.Module):
             sample = callable_f(sample)
             if "conv" in call_type:
                 
-                sample = F.leaky_relu(sample, alpha = self._alpha_leaky_relu)
+                sample = F.leaky_relu(sample, negative_slope = self._alpha_leaky_relu)
                 if self._batch_norm_flag:
-                    sample = F.batch_norm(sample)
+                     # inp is shape (N, C, H, W)
+                    n_channels = sample.shape[1]
+                    running_mu = torch.zeros(n_channels) # zeros are fine for first training iter
+                    running_std = torch.ones(n_channels) # ones are fine for first training iter
+                    sample = F.batch_norm(
+                        sample, 
+                        running_mu, 
+                        running_std, 
+                        training=True, 
+                        momentum=self._batch_norm_momentum, 
+                        eps=self._batch_norm_epsilon
+                    )
     

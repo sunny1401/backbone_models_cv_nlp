@@ -6,12 +6,12 @@ import pandas as pd
 from skimage import io
 from matplotlib import pyplot as plt
 from torchvision import transforms
-from src.cv.pytorch.data_loader.dataloader import CustomDataset
+from src.cv.pytorch.datasets.base_dataset import CustomDataset
 from typing import Optional
-from src.cv.pytorch.data_loader.configs import (
-    CustomDataset,
+from src.cv.pytorch.datasets.configs import (
+    CustomDatasetConfig,
 )
-from src.cv.pytorch.data_loader.use_cases.facial_keypoint_detection.transforms import (
+from src.cv.pytorch.datasets.facial_keypoint_detection.transforms import (
     Grayscale,
     RandomCrop,
     Resize, 
@@ -81,7 +81,7 @@ class FacialKeypointDataset(CustomDataset):
         image_data = data.pop(self.__image_column)
         self._image_labels = data
 
-        self.dataset = CustomDataset(
+        self.dataset = CustomDatasetConfig(
             dataset_name=dataset_name, 
             image_labels=data, 
             image_data=image_data

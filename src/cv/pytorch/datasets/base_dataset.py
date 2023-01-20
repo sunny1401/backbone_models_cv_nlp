@@ -8,7 +8,7 @@ from torch.utils.data import Dataset
 from torchvision import datasets
 
 
-from src.cv.pytorch.data_loader.configs import (
+from src.cv.pytorch.datasets.configs import (
     CustomDatasetConfig,
     PytorchDatasetConfig, 
     PytorchAvailableDatasets

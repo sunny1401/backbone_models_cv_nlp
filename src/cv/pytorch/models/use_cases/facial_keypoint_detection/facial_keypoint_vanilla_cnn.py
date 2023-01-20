@@ -7,17 +7,19 @@ class FacialKeypointVCNN(VanillaCNN):
     def __init__(
         self, 
         add_batch_norm: bool,
+        batch_norm_epsilon: float,
+        batch_norm_momentum: float,
+        alpha_leaky_relu: float,
         cnn_layers: int, 
         input_channel: int, 
         output_channels: List[int], 
         kernel_sizes: List[Tuple[int]],
         linear_layers: int,
-        leaky_relu_threshold: float,
         dropout_addition_options: int = 1,
         dropout_threshold: Optional[Union[List[float], float]] = None,
         initialize_model_from_given_parameters: bool = True,
         load_from_file: bool= False,
-        file_path: Optional[str] = None,
+        model_file_path: Optional[str] = None,
 
     ):
         """
@@ -30,8 +32,10 @@ class FacialKeypointVCNN(VanillaCNN):
         """
 
         super().__init__(
-           alpha_leaky_relu=leaky_relu_threshold, 
-            batch_norm_flag=add_batch_norm,
+           alpha_leaky_relu=alpha_leaky_relu, 
+           batch_norm_flag=add_batch_norm,
+           batch_norm_epsilon=batch_norm_epsilon,
+           batch_norm_momentum=batch_norm_momentum
         )
         if dropout_addition_options not in {0, 1, 2, 3, 4, 5, 6}:
             raise ValueError(
@@ -79,7 +83,7 @@ class FacialKeypointVCNN(VanillaCNN):
                     "and the dropout thresholds provided do not match"
                 )
             
-        if not len(output_channels) >=linear_layers + cnn_layers:
+        if not len(output_channels) >= linear_layers + cnn_layers:
             raise ValueError(
                 "Please provide the output value "
                 "for each layer cnn/linear visa output channel"
@@ -139,9 +143,10 @@ class FacialKeypointVCNN(VanillaCNN):
                     
 
         else:
-            if not file_path:
+            if not model_file_path:
                 raise ValueError(
                     "Arg file_path should be provided with load_ffrom_file = True"
                 )
-            self._load_model_from_disk(file_path)
+            self._load_model_from_disk(model_file_path)
+            # TODO: expand this route
         
