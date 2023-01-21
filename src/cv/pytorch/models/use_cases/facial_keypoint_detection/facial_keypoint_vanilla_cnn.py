@@ -1,4 +1,4 @@
-from src.cv.pytorch.models.vanillla_cnn import VanillaCNN
+from src.cv.pytorch.models.vanilla_cnn import VanillaCNN
 from typing import List, Tuple, Optional, Union
 
 

@@ -1,8 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Tuple, Optional, Dict
+from typing import Tuple, Optional
 import torch
-from tqdm import tqdm
 
 torch.backends.cudnn.deterministic = True
 
