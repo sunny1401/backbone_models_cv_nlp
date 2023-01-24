@@ -31,7 +31,8 @@ class FacialKeypointDataset(CustomDataset):
         image_column: Optional[str] = None,
         img_dir: Optional[str] = None, 
         random_crop_size: int = 224,
-        resize_size: int = 256
+        resize_size: int = 256,
+        is_test: bool = False
     ) -> None:
         
         self.__image_column = image_column
@@ -40,6 +41,7 @@ class FacialKeypointDataset(CustomDataset):
                 data_type = data_type,
                 dataset_name=dataset_name, 
                 img_dir=img_dir, 
+                is_test = is_test,
                 annotation_file=annotation_file, 
                 composed_transforms=transforms.Compose([
                     Grayscale(data_type=data_type),
@@ -58,7 +60,8 @@ class FacialKeypointDataset(CustomDataset):
                 composed_transforms=transforms.Compose([
                     Resize(data_type=data_type, size=resize_size),
                     Grayscale(data_type=data_type)
-                ])
+                ]),
+                is_test=is_test
             )
 
     def _load_custom_image_data(self, data_file, dataset_name):
@@ -77,6 +80,7 @@ class FacialKeypointDataset(CustomDataset):
         if not isinstance(data.loc[0, self.__image_column], np.ndarray):
             data[self.__image_column] = data[self.__image_column].apply(
                 lambda x: np.array(x.split(" "), dtype="float"))
+
         data.fillna(method = 'ffill',inplace = True)
         image_data = data.pop(self.__image_column)
         self._image_labels = data
@@ -95,9 +99,13 @@ class FacialKeypointDataset(CustomDataset):
         image = io.imread(img_name)
         
         # extracting keypoints for the image
-        image_label = np.array(
-            self.dataset.image_labels.iloc[idx, 1:]).astype("float").reshape(-1, 2)
-        sample = {'image': image, 'facial_landmarks': image_label}
+        if not self._is_test:
+            image_label = np.array(
+                self.dataset.image_labels.iloc[idx, 1:]).astype("float").reshape(-1, 2)
+            sample = {'image': image, 'facial_landmarks': image_label}
+
+        else:
+            sample = {"image": image}
 
         return sample
 
@@ -115,10 +123,13 @@ class FacialKeypointDataset(CustomDataset):
 
         else:
             image = self.dataset.image_data[idx]
-            keypoints = np.asarray(
-                self.dataset.image_labels.iloc[idx, :]).astype('float').reshape(-1, 2)
+            if not self._is_test:
+                keypoints = np.asarray(
+                    self.dataset.image_labels.iloc[idx, :]).astype('float').reshape(-1, 2)
 
-            sample = {"image": image, "facial_landmarks": keypoints}
+                sample = {"image": image, "facial_landmarks": keypoints}
+            else:
+                sample = {"image": image}
 
         return self.transform(sample)
 

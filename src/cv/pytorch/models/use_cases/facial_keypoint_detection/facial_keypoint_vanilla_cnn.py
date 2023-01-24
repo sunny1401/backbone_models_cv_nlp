@@ -6,7 +6,6 @@ class FacialKeypointVCNN(VanillaCNN):
     
     def __init__(
         self, 
-        add_batch_norm: bool,
         batch_norm_epsilon: float,
         batch_norm_momentum: float,
         alpha_leaky_relu: float,
@@ -14,28 +13,37 @@ class FacialKeypointVCNN(VanillaCNN):
         input_channel: int, 
         output_channels: List[int], 
         kernel_sizes: List[Tuple[int]],
+        
         linear_layers: int,
         dropout_addition_options: int = 1,
+        cnn_batch_norm_flag: bool = False,
+        linear_batch_norm_flag: bool = False, 
         dropout_threshold: Optional[Union[List[float], float]] = None,
         initialize_model_from_given_parameters: bool = True,
         load_from_file: bool= False,
         model_file_path: Optional[str] = None,
+        pooling: Optional[Tuple[Tuple[str, int]]] = None
 
     ):
         """
         dropout_addition_option: int: presents a design option where 
         four values are accepted:
+        0 -> No dropout
         1 -> add dropout after each layer
         2 -> add dropout after each cnn layer
-        3 -> add dropout between linear layers
-        4 -> add dropout between cnn and linear layers
+        3 -> add dropout between linear layers and cnn layer and each cnn layers
+        4 -> add dropout between linear layers
+        5 -> add dropout only between cnn layer and liner layers
+        6 -> add dropout btween cnn layer and linear layers and each linear layer
         """
 
         super().__init__(
            alpha_leaky_relu=alpha_leaky_relu, 
-           batch_norm_flag=add_batch_norm,
+           cnn_batch_norm_flag=cnn_batch_norm_flag,
            batch_norm_epsilon=batch_norm_epsilon,
-           batch_norm_momentum=batch_norm_momentum
+           batch_norm_momentum=batch_norm_momentum,
+           pooling= pooling,
+           linear_batch_norm_flag=linear_batch_norm_flag
         )
         if dropout_addition_options not in {0, 1, 2, 3, 4, 5, 6}:
             raise ValueError(
@@ -96,12 +104,17 @@ class FacialKeypointVCNN(VanillaCNN):
                     input_channel = output_channels[i-1]
 
 
+                if self._pooling:
+
+                    pool_type, pool_size = self._pooling[i]
+                else:
+                    pool_type, pool_size = "max", 2
                 self.single_cnn_activation_step(
                     input_channels=input_channel, 
                     output_channels=output_channels[i], 
                     kernel_size=kernel_sizes[i],
-                    add_max_pool=True,
-                    pool_size=(2,2),        
+                    pool_type=pool_type,
+                    pool_size=(pool_size, pool_size),        
                 )
 
                 if dropout_addition_options in {1, 2, 3}:
@@ -112,7 +125,7 @@ class FacialKeypointVCNN(VanillaCNN):
 
                     self.add_dropout(dropout_threshold=dropout_value)
 
-            if dropout_addition_options in {3, 6}:
+            if dropout_addition_options in {3, 5, 6}:
                 if isinstance(dropout_threshold, List):
                     if dropout_addition_options == 3:
                         dropout_value = dropout_threshold[-1]
@@ -134,18 +147,21 @@ class FacialKeypointVCNN(VanillaCNN):
                 else:
                     self.add_linear_layer(
                         in_features=output_channels[current_layer_input - 1], 
-                        out_fatures=output_channels[current_layer_input]
+                        out_features=output_channels[current_layer_input]
                 )
 
-                if dropout_addition_options in {4, 6}:
-                    if len(dropout_threshold):
-                        if isinstance(dropout_threshold, List):
+                if dropout_addition_options in {1, 4, 6}:
+                    if isinstance(dropout_threshold, List):
+                        # TODO -> allowing for silen error
+                        # add dropout using idx
+                        if len(dropout_threshold):
                             self.add_dropout(
                                 dropout_threshold=dropout_threshold.pop(0)
                             )
-                        else:
+                    else:
+                        if i != linear_layers - 1:
                             self.add_dropout(
-                                dropout_threshold=dropout_option_map)
+                                dropout_threshold=dropout_threshold)
                     
 
         else:
