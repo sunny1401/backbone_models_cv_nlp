@@ -1,4 +1,4 @@
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 from abc import abstractmethod, ABCMeta
 from src.cv.pytorch.models.configs import (
     ModelTrainingConfig, ModelDataConfig
@@ -13,11 +13,17 @@ import torch
 from matplotlib import pyplot as plt
 import os
 import logging
+import json
+import sys
 
-logging.basicConfig(
-    format='%(name)s - %(levelname)s - %(message)s - %(asctime)s', 
-    datefmt='%d-%b-%y %H:%M:%S')
 
+root = logging.getLogger()
+root.setLevel(logging.DEBUG)
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s - %(asctime)s', datefmt='%d-%b-%y %H:%M:%S')
+handler.setFormatter(formatter)
+root.addHandler(handler)
 
 class CNNTrainingPipeline(metaclass=ABCMeta):
 
@@ -27,7 +33,20 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
         model_training_config: Dict, 
         model_data_config: Dict,
         model_initialization_params: Dict,
+        load_model_from_path: Optional[str] = None,
+        
     ):
+        """
+        Initializes the pipeline with the dataset, model training configuration,
+        model data configuration, model initialization parameters and an optional
+        path to a pre-trained model checkpoint.
+        
+        :param dataset: The dataset to be used for training and validation.
+        :param model_training_config: A dictionary containing the training configuration such as number of epochs, batch size etc.
+        :param model_data_config: A dictionary containing the data configuration such as data preprocessing options.
+        :param model_initialization_params: A dictionary containing the parameters to initialize the model.
+        :param load_model_from_path: The path to the checkpoint file containing a pre-trained model to be loaded.
+        """
         
         self.dataset = dataset
         self.model_training_config = ModelTrainingConfig(**model_training_config)
@@ -35,12 +54,19 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
         self.__set_random_seed()
         
         required_non_essential_arguments = {
-            "add_batch_norm", 
             "alpha_leaky_relu",
-            "batch_norm_epsilon",
-            "batch_norm_momentum"
         }
-
+        model_params_init_condition =  (
+            model_initialization_params.get("cnn_batch_norm_flag", False) or 
+            model_initialization_params.get("linear_batch_norm_flag", False)
+        )
+        if model_params_init_condition:
+            required_non_essential_arguments.add(
+                "batch_norm_epsilon"
+            )
+            required_non_essential_arguments.add(
+                "batch_norm_momentum"
+            )
         for key in required_non_essential_arguments:
             if key not in model_initialization_params:
                 model_initialization_params[key] = getattr(
@@ -48,14 +74,18 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
                 )
 
         self.model = self._initialize_model(
+            device=self.model_training_config.device,
             model_params=model_initialization_params,
-            device=self.model_training_config.device
         )
-
         self._train_dataloader, self._validation_dataloader = self.__get_dataloader()
         self.optimizer, self.criterion = self.initialize_optimization_parameters(
             lr=self.model_training_config.learning_rate
         )
+        self._model_path = load_model_from_path
+        if self._model_path:
+            logging.info("Loadding model state from input path")
+            self.load_model_data()
+
         self.train_loss = []
         self.validation_loss = []
 
@@ -70,6 +100,9 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
         else:
             self._number_of_validation_batches = 0
         
+        self._final_trained_model = None
+        self._min_validation_loss: float = float(sys.maxsize)
+        
     def __set_random_seed(self):
 
         np.random.seed(self.model_data_config.random_seed)
@@ -82,7 +115,7 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
             torch.backends.cudnn.benchmark = False
 
     @abstractmethod
-    def _initialize_model(self, model_params: Dict, device: str):
+    def _initialize_model(self, device: str, model_params: Dict):
         pass
 
         raise NotImplementedError
@@ -162,28 +195,50 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
                 self.validation_loss.append(epoch_validation_loss)
 
 
-    def generate_train_validation_loss_curves(self, save_figure=True):
+    def generate_train_validation_loss_curves(self, save_figure=False):
         plt.figure(figsize=(10, 7))
         plt.plot(self.train_loss, color='blue', label='train loss through epochs')
         plt.plot(self.validation_loss, color='red', label='validataion loss through epochs')
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"{self.model_data_config.loss_curve_path}")
+        if save_figure:
+            plt.savefig(f"{self.model_data_config.loss_curve_path}")
         plt.show()
         
     def save_model_data(self, model_path):
+        if not model_path.split(".")[-1] == "pkl":
+            raise ValueError(
+                "Please provide a pickle based path."
+            )
+        model_save_path = os.path.join(self.model_data_config.model_save_dir, model_path)
+        os.makedirs(model_save_path, exist_ok=True)
         torch.save(
             {
-                'epoch': self.model_training_config.epochs,
-                'model_state_dict': self.model.state_dict(),
+                'model_state_dict': self.best_model.state_dict(),
                 'optimizer_state_dict': self.optimizer.state_dict(),
-                'loss': self.criterion,
             }, 
             os.path.join(
-                ModelDataConfig.model_save_path, model_path)
+                self.model_data_config.model_save_dir, model_path)
         )
-        os.makedirs(ModelDataConfig.model_save_path, exist_ok = True)
+        self._model_path = model_save_path
+
+    def load_model_data(self):
+
+        if not os.path.exists(self._model_path):
+            self._model_path = os.path.join(
+                self.model_data_config.model_save_dir, self._model_path
+            )
+            if not os.path.exists(self._model_path):
+                raise FileNotFoundError(
+                    "The model path provided doesn't exist. PLease provide a valid path"
+                )
+
+        model_data = torch.load(self._model_path)
+        self.model.load_state_dict(model_data['model_state_dict'])
+        self._final_trained_model = self.model
+        self.optimizer.load_state_dict(model_data["optimizer_state_dict"])
+
 
 
     @abstractmethod
@@ -193,3 +248,18 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
         """
         
         raise NotImplementedError
+
+    @abstractmethod
+    def get_predictions(self, test_dataloader):
+        ""
+        raise NotImplemented
+
+    @property
+    def best_model(self):
+        if self._final_trained_model:
+            return self._final_trained_model
+        elif self._model_path:
+            self._final_trained_model = self.model
+            return self.model
+        else:
+            raise ValueError("Pleass train the model to get the best estimator")

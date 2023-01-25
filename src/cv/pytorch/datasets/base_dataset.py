@@ -60,6 +60,7 @@ class CustomDataset(Dataset):
     def __init__(self,
         dataset_name: str,
         data_type: str,
+        is_test: bool, 
         annotation_file: Optional[str] = None,
         composed_transforms: Callable = None,
         img_dir: Optional[str] = None,
@@ -78,6 +79,7 @@ class CustomDataset(Dataset):
             )
 
         self._data_type = data_type
+        self._is_test = is_test
 
         img_dir_data_condition = (
             (annotation_file and img_dir)

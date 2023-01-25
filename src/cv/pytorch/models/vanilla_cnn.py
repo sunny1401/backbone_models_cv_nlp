@@ -10,9 +10,11 @@ class VanillaCNN(nn.Module):
     def __init__(
         self, 
         alpha_leaky_relu: float, 
-        batch_norm_flag: bool,
+        cnn_batch_norm_flag: bool,
         batch_norm_epsilon: float,
-        batch_norm_momentum: float
+        batch_norm_momentum: float,
+        linear_batch_norm_flag: float,
+        pooling: Optional[Tuple[Tuple[str, int]]] = None
     ):
         
         super(VanillaCNN, self).__init__()
@@ -21,10 +23,12 @@ class VanillaCNN(nn.Module):
         self._dropout_call_iteration = 0
         self._linear_call_iteration = 0
         self._alpha_leaky_relu = alpha_leaky_relu
-        self._batch_norm_flag = batch_norm_flag
+        self._add_batch_norm_after_cnn = cnn_batch_norm_flag
+        self._add_batch_norm_after_linear = linear_batch_norm_flag
         self._batch_norm_epsilon = batch_norm_epsilon
         self._batch_norm_momentum = batch_norm_momentum
-        
+        self._pooling  = pooling
+
     def _load_model_from_disk(self, model_path: str):
         pass
     
@@ -34,8 +38,8 @@ class VanillaCNN(nn.Module):
         input_channels: int, 
         output_channels: int, 
         kernel_size: Tuple[int, int],
-        add_max_pool: bool = False,
-        pool_size: Optional[Tuple[int, int]] = None,
+        pool_type: str,
+        pool_size: Tuple[int, int]
         
     ):
         
@@ -45,9 +49,7 @@ class VanillaCNN(nn.Module):
             output_channel: 
             kernel_size
         """
-        
-        # TODO - add validation on input
-        # TODO - count number of GPU and use pipeline for more than one
+
         # TODO - add stride, padding etc
         self._cnn_call_iteration += 1
         conv_layer = nn.Conv2d(
@@ -57,21 +59,43 @@ class VanillaCNN(nn.Module):
         
         setattr(self, f"conv2d{self._cnn_call_iteration}", conv_layer)
         
-        if add_max_pool:
-            if not pool_size:
-                 raise ValueError("The pool size cannot be zero ")
-            pool_layer = nn.MaxPool2d(kernel_size=pool_size)
-            self._net.append((f"max_pool2d{self._cnn_call_iteration}", pool_layer))
-            setattr(self, f"max_pool2d{self._cnn_call_iteration}", pool_layer)
+        pool_type_dict = {
+            "adaptive_max": nn.AdaptiveMaxPool2d,
+            "avg": nn.AvgPool2d,
+            "max": nn.MaxPool2d,
+            "adaptive_avg": nn.AdaptiveAvgPool2d
+        }
+        pool_layer = pool_type_dict[pool_type](kernel_size=pool_size)
+        self._net.append((f"{pool_type}_pool2d{self._cnn_call_iteration}", pool_layer))
+        setattr(self, f"{pool_type}_pool2d{self._cnn_call_iteration}", pool_layer)
+
+        if self._add_batch_norm_after_cnn:
+            self.add_batch_norm_layer(num_channels=output_channels)
             
-            
+
+    def add_batch_norm_layer(self, num_channels):
+        batch_norm_layer = nn.BatchNorm2d(
+            num_features=num_channels, 
+            eps=self._batch_norm_epsilon, 
+            momentum=self._batch_norm_momentum, 
+            affine=True, 
+            track_running_stats=True
+        )
+        self._net.append((f"batch_norm2d{self._cnn_call_iteration}", batch_norm_layer))
+        setattr(self, f"batch_norm2d{self._cnn_call_iteration}", batch_norm_layer)
+
     def add_dropout(self, dropout_threshold):
         self._dropout_call_iteration += 1
         dropout_layer = nn.Dropout(dropout_threshold)
         self._net.append((f"dropout{self._dropout_call_iteration}", dropout_layer))
         setattr(self, f"dropout{self._dropout_call_iteration}", dropout_layer)
         
-    def add_linear_layer(self, out_features, learn_additive_bias=True, in_features: Optional[int] = None):
+    def add_linear_layer(
+        self, 
+        out_features, 
+        learn_additive_bias=True, 
+        in_features: Optional[int] = None, 
+    ):
         """
         """
         if not self._linear_call_iteration:
@@ -83,6 +107,11 @@ class VanillaCNN(nn.Module):
             (f"linear{self._linear_call_iteration}", linear_layer)
         )
         setattr(self, f"linear{self._linear_call_iteration}",linear_layer)
+
+        if self._add_batch_norm_after_linear:
+            self.add_batch_norm_layer(num_channels=out_features)
+
+
 
     def _get_conv_layer_output_shape(
         self, kernel, stride, padding, dilation
@@ -110,20 +139,9 @@ class VanillaCNN(nn.Module):
                 sample = sample.view(sample.size(0), -1)
 
             sample = callable_f(sample)
-            if "conv" in call_type:
-                
+            if "conv" in call_type or (
+                "linear" in call_type and call_type[-1] != self._linear_call_iteration
+            ):
+
                 sample = F.leaky_relu(sample, negative_slope = self._alpha_leaky_relu)
-                if self._batch_norm_flag:
-                    # inp is shape (N, C, H, W)
-                    n_channels = sample.shape[1]
-                    running_mu = torch.zeros(n_channels).to(sample.get_device()) # zeros are fine for first training iter
-                    running_std = torch.ones(n_channels).to(sample.get_device()) # ones are fine for first training iter
-                    sample = F.batch_norm(
-                        sample, 
-                        running_mu, 
-                        running_std, 
-                        training=True, 
-                        momentum=self._batch_norm_momentum, 
-                        eps=self._batch_norm_epsilon
-                    )
         return sample

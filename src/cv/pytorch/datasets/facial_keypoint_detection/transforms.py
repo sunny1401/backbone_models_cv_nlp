@@ -18,7 +18,7 @@ class Grayscale:
     def __call__(self, data: Dict):
         
         image = data["image"]
-        key_points = data["facial_landmarks"]
+        key_points = data.get("facial_landmarks", None)
         if self._data_type == "image":
             
             # rescaling [0 to 1] from [0, 255]
@@ -60,7 +60,7 @@ class Resize:
         
     def __call__(self, data: Dict):
         image = data["image"]
-        key_points = data["facial_landmarks"]
+        key_points = data.get("facial_landmarks", None)
         if self._data_type == "image":
 
             current_height, current_weight = image.shape
@@ -83,10 +83,12 @@ class Resize:
             else:
                 new_height, new_weight = self._size
                 
-            
             return {
                 "image": cv2.resize(image, (new_weight, new_height)), 
-                "facial_landmarks": key_points * [new_weight/current_weight, new_height/current_height]
+                "facial_landmarks": (
+                    key_points * [new_weight/current_weight, new_height/current_height]
+                    if key_points else key_points
+                )
             }
             
         else:
@@ -114,7 +116,7 @@ class RandomCrop:
             
     def __call__(self, sample):
         image = sample["image"]
-        key_points = sample["facial_landmarks"]
+        key_points = sample.get("facial_landmarks", None)
         current_height, current_weight = image.shape
         
         new_h, new_w = self._size
@@ -123,15 +125,16 @@ class RandomCrop:
 
         return {
             'image': image[top: top + new_h, left: left + new_w], 
-            'facial_landmarks': key_points - [left, top]
+            'facial_landmarks': key_points - [left, top] if key_points else key_points
         }
-
+        
+        
     
 class ToTensor(object):
     """Convert ndarrays in sample to Tensors."""
     def __call__(self, sample):
         image = sample["image"]
-        key_points = sample["facial_landmarks"]
+        key_points = sample.get("facial_landmarks", None)
          
         # if image has no grayscale color channel, add one
         if(len(image.shape) == 2):
@@ -145,5 +148,5 @@ class ToTensor(object):
         
         return {
             'image': torch.from_numpy(image),
-            'facial_landmarks': torch.from_numpy(key_points)
+            'facial_landmarks': torch.from_numpy(key_points) if key_points else None
         }
