@@ -10,6 +10,7 @@ import numpy as np
 class PytorchAvailableDatasets:
     fashion_mnist: str = "FashionMNIST"
     mnist: str = "MNIST"
+    cityscapes: str = "Cityscapes"
 
 
 class PytorchDatasetConfig(NamedTuple):

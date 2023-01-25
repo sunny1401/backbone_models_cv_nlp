@@ -5,7 +5,7 @@ import numpy as np
 @dataclass
 class ModelDataConfig:
     dataset_size: int
-    model_save_path: str
+    model_save_dir: str
     random_seed: int
     shuffle_dataset: bool 
     train_size: int
@@ -28,7 +28,7 @@ class ModelDataConfig:
         np.random.seed(random_seed)
         self.random_seed = random_seed
         self.dataset_size = dataset_size
-        self.model_save_path = model_save_path
+        self.model_save_dir = model_save_path
         self.train_size = int(np.floor(train_data_pct * dataset_size))
         self.validation_size = dataset_size - self.train_size
         self.shuffle_dataset = shuffle_dataset

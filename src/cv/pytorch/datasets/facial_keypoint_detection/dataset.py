@@ -129,9 +129,12 @@ class FacialKeypointDataset(CustomDataset):
 
                 sample = {"image": image, "facial_landmarks": keypoints}
             else:
-                sample = {"image": image}
 
-        return self.transform(sample)
+                sample = {"image": image}
+        
+        sample = self.transform(sample)
+
+        return sample
 
 
     

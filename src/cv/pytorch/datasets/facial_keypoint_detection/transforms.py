@@ -134,7 +134,7 @@ class ToTensor(object):
     """Convert ndarrays in sample to Tensors."""
     def __call__(self, sample):
         image = sample["image"]
-        key_points = sample["facial_landmarks"]
+        key_points = sample.get("facial_landmarks", None)
          
         # if image has no grayscale color channel, add one
         if(len(image.shape) == 2):
