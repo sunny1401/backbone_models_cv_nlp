@@ -10,7 +10,6 @@ from torchvision import datasets
 
 from src.cv.pytorch.datasets.configs import (
     CustomDatasetConfig,
-    PytorchDatasetConfig, 
     PytorchAvailableDatasets
 )
 
@@ -27,7 +26,7 @@ class PyTorchDataset(Dataset):
         self, 
         dataset_name: str,
         img_dir: str,
-        composed_transforms: Callable
+        split_type: str
     ) -> None:
         super().__init__()
 
@@ -38,18 +37,29 @@ class PyTorchDataset(Dataset):
         pytorch_lib_callable: Callable = getattr(
             datasets, asdict(PytorchAvailableDatasets())[dataset_name])
 
-        self.dataset = PytorchDatasetConfig(
-            dataset_name=dataset_name, 
-            dataset_download_location=dataset_location,
-            test_dataset=pytorch_lib_callable(
-                root=dataset_location, train=False, download=True, transform=composed_transforms
-                ),
-            train_dataset=pytorch_lib_callable(
-                root=dataset_location, train=True, download=True, transform=composed_transforms
-                ),
-            
-            )
+        self._dataset_name = dataset_name
+        self.dataset = self._initialize_data(
+            dataset_location=dataset_location, 
+            pytorch_callable=pytorch_lib_callable, 
+            split_type=split_type
+        )
 
+    @abstractmethod
+    def _initialize_data(
+        self, 
+        dataset_location: str, 
+        pytorch_callable: Callable, 
+        split_type:str
+    ) -> Dataset:
+        raise NotImplementedError
+
+    @abstractmethod
+    def __getitem__(self, idx):
+        raise NotImplementedError
+        
+    @abstractmethod
+    def __len__(self):
+        raise NotImplementedError
 
 class CustomDataset(Dataset):
 
@@ -95,14 +105,12 @@ class CustomDataset(Dataset):
             if not os.path.exists(img_dir):
                 raise FileNotFoundError(f"Image directory for {dataset_name} not found at {img_dir}")
 
-            if not annotation_file:
-                raise ValueError("Please provide a valid input labels file")
 
             annotation_file = os.path.join(CURRENT_ROOT_DIR, annotation_file)
             if not os.path.exists(annotation_file):
                 raise FileNotFoundError(f"Could not fild a valid annotation file for the image dataset {dataset_name}")
 
-            
+                
             self.dataset = CustomDatasetConfig(dataset_name=dataset_name, img_directory=img_dir, image_labels=pd.read_csv(annotation_file))
         
         elif train_test_data:

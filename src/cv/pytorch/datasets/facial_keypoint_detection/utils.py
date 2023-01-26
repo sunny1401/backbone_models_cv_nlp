@@ -3,7 +3,7 @@ from typing import List, Dict
 
 def multi_view_image_keypoints(data: List[Dict], number_of_columns: int = 3):
     """
-    TODO
+    Shows keypoints on images in the list
     """
     length = len(data)
     number_of_rows = length//number_of_columns
