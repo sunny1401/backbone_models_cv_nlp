@@ -1,4 +1,4 @@
-from typing import Dict, Union, Tuple
+from typing import Dict, Union, Tuple, Optional
 import numpy as np
 import cv2
 import torch
@@ -115,22 +115,30 @@ class RandomCrop:
             self._size = (int(size), int(size))
             
     def __call__(self, sample):
-        image = sample["image"]
-        key_points = sample.get("facial_landmarks", None)
+
+        label_key: Optional[str] = None
+        labels = None
+        for key in sample:
+            if key == "image":
+                image = sample[key]
+            else:
+                label_key = key
+                labels = sample[key]
         current_height, current_weight = image.shape
         
         new_h, new_w = self._size
         top = np.random.randint(0, current_height - new_h)
         left = np.random.randint(0, current_weight - new_w)
 
-        return {
-            'image': image[top: top + new_h, left: left + new_w], 
-            'facial_landmarks': key_points - [left, top] if key_points else key_points
-        }
+        sample = dict(image= image[top: top + new_h, left: left + new_w])
+        if label_key:
+            sample[label_key] = labels - [left, top] if labels else labels
+
+        return sample
         
         
     
-class ToTensor(object):
+class ToTensor:
     """Convert ndarrays in sample to Tensors."""
     def __call__(self, sample):
         image = sample["image"]
