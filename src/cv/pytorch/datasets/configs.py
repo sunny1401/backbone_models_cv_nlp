@@ -13,13 +13,6 @@ class PytorchAvailableDatasets:
     cityscapes: str = "Cityscapes"
 
 
-class PytorchDatasetConfig(NamedTuple):
-    dataset_name: str
-    train_dataset: Dataset
-    test_datset: Dataset
-    dataset_download_location: str
-
-
 class CustomDatasetConfig(NamedTuple):
     dataset_name: str
     image_labels: Optional[pd.DataFrame] = None

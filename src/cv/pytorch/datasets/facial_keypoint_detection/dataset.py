@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 
 from skimage import io
-from matplotlib import pyplot as plt
 from torchvision import transforms
 from src.cv.pytorch.datasets.base_dataset import CustomDataset
 from typing import Optional
@@ -13,7 +12,6 @@ from src.cv.pytorch.datasets.configs import (
 )
 from src.cv.pytorch.datasets.facial_keypoint_detection.transforms import (
     Grayscale,
-    RandomCrop,
     Resize, 
     ToTensor
 )
@@ -46,7 +44,6 @@ class FacialKeypointDataset(CustomDataset):
                 composed_transforms=transforms.Compose([
                     Grayscale(data_type=data_type),
                     Resize(data_type=data_type, size=resize_size),
-                    RandomCrop(random_crop_size),
                     ToTensor(),
                 ])
             )
