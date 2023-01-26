@@ -1,6 +1,7 @@
 from src.cv.model_pipelines.dl_base_pipeline import CNNTrainingPipeline
 from src.cv.pytorch.models.use_cases.facial_keypoint_detection.facial_keypoint_vanilla_cnn import FacialKeypointVCNN
 from typing import Dict, List, Optional
+import numpy as np
 from torch.utils.data import Dataset
 import torch.nn as nn
 import torch.nn.functional as F
@@ -114,29 +115,40 @@ class FacialCNNTrainingPipeline(CNNTrainingPipeline):
             self._final_trained_model = self.model
         return validation_loss
 
-    def get_predictions(self, test_dataloader, device) -> List:
-        
+    def get_predictions(self, test_dataloader: List) -> List:
+
         model = self.best_model
-        is_cuda = next(self.best_model.parameters()).is_cuda
-        if (device == "cuda" and not is_cuda) or (device != "cuda" and is_cuda):
-            model.to(device)
         model.eval()
 
         output_keyp = []
-        try:
-            for i in range(len(test_dataloader)):
-                data = test_dataloader.dataset[i]
-                image = torch.from_numpy(data["image"]).type(torch.FloatTensor)
-                # inp is shape (N, C, H, W)
-                import pdb
-                pdb.set_trace()
-                image = image.reshape(1, image.shape[-1], image.shape[0], image.shape[1])
-                image = image.to(device)
-                outputs = model(image).cpu().data.numpy()
-                output_keyp.append(outputs)
-        except TypeError:
-            import pdb
-            pdb.set_trace()
-            pass
-        
-        return output_keyp
+        for data in test_dataloader:
+            image = data.type(torch.FloatTensor)
+            # inp is shape (N, C, H, W)
+            image = image.reshape(image.shape[0], image.shape[-1], image.shape[1], image.shape[2])
+            image = image.to(self.model_training_config.device)
+            outputs = model(image)
+            if self.model_training_config.device == "cuda":
+                outputs = outputs.cpu().data.numpy()
+            output_keyp.append(outputs)
+
+        return [preds for batch in output_keyp for preds in batch]
+
+    def generate_test_dataloader_from_dataset(self, dataset: Dataset) -> List:
+
+        dataloader = []
+        index = 0
+        dataset_finished = False
+        current_end = self.model_training_config.batch_size
+        while(current_end <= len(dataset)):
+            dataloader.append(torch.from_numpy(np.array(
+                [dataset[j]["image"] for j in range(index, current_end)]
+            )))
+            if dataset_finished:
+                break
+            index = current_end
+            current_end += self.model_training_config.batch_size
+            if current_end > len(dataset):
+                current_end = len(dataset)
+                dataset_finished = True
+
+        return dataloader
