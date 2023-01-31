@@ -19,9 +19,6 @@ class FacialKeypointVCNN(VanillaCNN):
         cnn_batch_norm_flag: bool = False,
         linear_batch_norm_flag: bool = False, 
         dropout_threshold: Optional[Union[List[float], float]] = None,
-        initialize_model_from_given_parameters: bool = True,
-        load_from_file: bool= False,
-        model_file_path: Optional[str] = None,
         pooling: Optional[Tuple[Tuple[str, int]]] = None
 
     ):
@@ -96,79 +93,69 @@ class FacialKeypointVCNN(VanillaCNN):
                 "Please provide the output value "
                 "for each layer cnn/linear visa output channel"
             )
-        if not load_from_file and initialize_model_from_given_parameters:
-            for i in range(cnn_layers):
-                if i == 0:
-                    input_channel = input_channel
-                else:
-                    input_channel = output_channels[i-1]
+        for i in range(cnn_layers):
+            if i == 0:
+                input_channel = input_channel
+            else:
+                input_channel = output_channels[i-1]
 
 
-                if self._pooling:
+            if self._pooling:
 
-                    pool_type, pool_size = self._pooling[i]
-                else:
-                    pool_type, pool_size = "max", 2
-                self.single_cnn_activation_step(
-                    input_channels=input_channel, 
-                    output_channels=output_channels[i], 
-                    kernel_size=kernel_sizes[i],
-                    pool_type=pool_type,
-                    pool_size=(pool_size, pool_size),        
-                )
+                pool_type, pool_size = self._pooling[i]
+            else:
+                pool_type, pool_size = "max", 2
+            self.single_cnn_activation_step(
+                input_channels=input_channel, 
+                output_channels=output_channels[i], 
+                kernel_size=kernel_sizes[i],
+                pool_type=pool_type,
+                pool_size=(pool_size, pool_size),        
+            )
 
-                if dropout_addition_options in {1, 2, 3}:
-                    if isinstance(dropout_threshold, List):
-                        dropout_value = dropout_threshold[i]
-                    else:
-                        dropout_value = dropout_threshold
-
-                    self.add_dropout(dropout_threshold=dropout_value)
-
-            if dropout_addition_options in {3, 5, 6}:
+            if dropout_addition_options in {1, 2, 3}:
                 if isinstance(dropout_threshold, List):
-                    if dropout_addition_options == 3:
-                        dropout_value = dropout_threshold[-1]
-                    else:
-                        dropout_value = dropout_threshold.pop(0)
+                    dropout_value = dropout_threshold[i]
                 else:
                     dropout_value = dropout_threshold
 
                 self.add_dropout(dropout_threshold=dropout_value)
-                
-            for i in range(linear_layers):
-                
-                current_layer_input = cnn_layers + i
-                if not i:
-                
-                    self.add_linear_layer( 
-                            out_features=output_channels[current_layer_input]
+
+        if dropout_addition_options in {3, 5, 6}:
+            if isinstance(dropout_threshold, List):
+                if dropout_addition_options == 3:
+                    dropout_value = dropout_threshold[-1]
+                else:
+                    dropout_value = dropout_threshold.pop(0)
+            else:
+                dropout_value = dropout_threshold
+
+            self.add_dropout(dropout_threshold=dropout_value)
+            
+        for i in range(linear_layers):
+            
+            current_layer_input = cnn_layers + i
+            if not i:
+            
+                self.add_linear_layer( 
+                        out_features=output_channels[current_layer_input]
+                    )
+            else:
+                self.add_linear_layer(
+                    in_features=output_channels[current_layer_input - 1], 
+                    out_features=output_channels[current_layer_input]
+            )
+
+            if dropout_addition_options in {1, 4, 6}:
+                if isinstance(dropout_threshold, List):
+                    # TODO -> allowing for silen error
+                    # add dropout using idx
+                    if len(dropout_threshold):
+                        self.add_dropout(
+                            dropout_threshold=dropout_threshold.pop(0)
                         )
                 else:
-                    self.add_linear_layer(
-                        in_features=output_channels[current_layer_input - 1], 
-                        out_features=output_channels[current_layer_input]
-                )
-
-                if dropout_addition_options in {1, 4, 6}:
-                    if isinstance(dropout_threshold, List):
-                        # TODO -> allowing for silen error
-                        # add dropout using idx
-                        if len(dropout_threshold):
-                            self.add_dropout(
-                                dropout_threshold=dropout_threshold.pop(0)
-                            )
-                    else:
-                        if i != linear_layers - 1:
-                            self.add_dropout(
-                                dropout_threshold=dropout_threshold)
-                    
-
-        else:
-            if not model_file_path:
-                raise ValueError(
-                    "Arg file_path should be provided with load_ffrom_file = True"
-                )
-            self._load_model_from_disk(model_file_path)
-            # TODO: expand this route
+                    if i != linear_layers - 1:
+                        self.add_dropout(
+                            dropout_threshold=dropout_threshold)
         

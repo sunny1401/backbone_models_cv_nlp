@@ -1,4 +1,0 @@
-[submodule "kaggle_utils"]
-	path = kaggle_utils
-	url = https://github.com/sunny1401/kaggle_utils
-	ignore = dirty
