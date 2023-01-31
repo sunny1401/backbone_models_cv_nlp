@@ -56,7 +56,7 @@ class Resize:
         )
 
 
-class Denioser:
+class Denoiser:
 
     def __init__(
         self, 
@@ -92,7 +92,7 @@ class Denioser:
             image = cv2.MediumBlur(image, self._kernel)
 
         else:
-            image = cv2.GaussianBlur(image, self.kernel, 0)
+            image = cv2.GaussianBlur(image, self._kernel, 0)
 
         sample["image"] = image
         return sample
