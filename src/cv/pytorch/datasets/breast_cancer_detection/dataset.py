@@ -4,6 +4,7 @@ import torch
 import os
 from src.cv.pytorch.datasets.base_dataset import CustomDataset
 
+
 class BreastCancerDataset(CustomDataset):
     
     def __init__(
@@ -30,8 +31,6 @@ class BreastCancerDataset(CustomDataset):
         if img.PhotometricInterpretation == "MONOCHROME1":
             # normalize across pixel array to make difference prominent
             image_array = np.max(image_array) - image_array
-            
-        image_array = (image_array /np.max(image_array)).astype("float32")
         
         return image_array
     
@@ -58,7 +57,7 @@ class BreastCancerDataset(CustomDataset):
         patient_id = str(int(annotation_data["patient_id"]))
         image_id = str(int(annotation_data["image_id"]))
         image_path = f"{os.path.join(self.dataset.img_directory, patient_id, image_id)}.dcm"
-        image = self.__parse_image(pydicom.dcmread(image_path))
+        image = self.__parse_image(pydicom.read_file(image_path))
             
         sample = dict(
             image=image, 
@@ -68,6 +67,9 @@ class BreastCancerDataset(CustomDataset):
 
         if self.transform:
             sample = self.transform(sample)
-            sample["image"] = sample["image"][np.newaxis]
+            sample = dict(
+                image=sample["image"][np.newaxis],
+                label=sample["label"]
+            )
         
         return sample
