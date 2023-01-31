@@ -57,7 +57,7 @@ class BreastCancerDataset(CustomDataset):
         annotation_data = self.dataset.image_labels.loc[idx, required_columns]
         patient_id = annotation_data["patient_id"]
         image_id = annotation_data["image_id"]
-        image_path = os.path.join(self.dataset.image_directory, patient_id, image_id)
+        image_path = f"{os.path.join(self.dataset.img_directory, patient_id, image_id)}.dcm"
         image = self.__parse_image(pydicom.dcmread(image_path))
             
         sample = dict(
