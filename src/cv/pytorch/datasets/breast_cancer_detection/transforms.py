@@ -1,11 +1,16 @@
 from typing import Dict, Union, Tuple
 import cv2
+import numpy as np
 
 class Resize:
 
-    def __init__(self, size: Union[int, Tuple[int, int]], do_center_crop: bool = True) -> None:
+    def __init__(
+        self, size: Union[int, Tuple[int, int]], 
+        zoom_factor=1.5, 
+        lateral_crop: bool = True
+    ) -> None:
         # Store size and center_crop values in class object
-        if do_center_crop == True:
+        if lateral_crop == True:
             if isinstance(size, Tuple) and size[0] != size[1]:
                 raise ValueError("The values passed for arguments size and centering is confusing."
                                  "For centering == True, "
@@ -13,19 +18,21 @@ class Resize:
             self._size = size if isinstance(size, int) else size[0]
         else:
             self._size = size if isinstance(size, Tuple) else (size, size)
-        self._centering = do_center_crop
+        self._lateral_crop = lateral_crop
+        self._zoom_factor = zoom_factor
 
     def __get_center_coordinates(self, image, lateral_view):
         _, width = image.shape[:2]
 
         # Calculate the center of the image
-        center = int(width//2)
         if lateral_view == "L":
             # Crop the left half of the image
-            image = image[:, :center]
+            new_width = int(width*0.75)
+            image = image[:, :new_width]
         else:
+            new_width = int(width*0.25)
             # Crop the right half of the image
-            image = image[:, center:]
+            image = image[:, new_width:]
         return image
 
     def __call__(self, sample: Dict) -> Dict:
@@ -33,16 +40,19 @@ class Resize:
 
         height, _ = image.shape
 
-        if self._centering:
+        if self._lateral_crop:
 
             laterality = sample["lateral_view"]
             center_cropped_image = self.__get_center_coordinates(
                 image=image, lateral_view=laterality
             )
-            
+
             resized_img = cv2.resize(
-                center_cropped_image, (self._size, height),
-                            interpolation=cv2.INTER_CUBIC)
+                center_cropped_image, 
+                (self._size, height),
+                interpolation=cv2.INTER_CUBIC, 
+                fx=self._zoom_factor, fy=self._zoom_factor
+            )
 
         else:
             resized_img = cv2.resize(
@@ -103,7 +113,7 @@ class HistogramEqualization:
     def __init__(
         self, 
         clip_limit: float = 2.0, 
-        tile_grid_size: Tuple[int, int]=(8,8)
+        tile_grid_size: Tuple[int, int]=(3,3)
     ):
 
         if not isinstance(tile_grid_size, Tuple):
@@ -120,7 +130,10 @@ class HistogramEqualization:
 
     def __call__(self, sample: Dict) -> Dict:
         
-        sample["image"] = self._histogram_equalizer.apply(
+        image_array = self._histogram_equalizer.apply(
             sample["image"]
         )
+
+        image_array = (image_array /np.max(image_array)).astype("float32")
+        sample["image"] = image_array
         return sample
