@@ -28,7 +28,6 @@ class FacialKeypointDataset(CustomDataset):
         data_file: Optional[str] = None,
         image_column: Optional[str] = None,
         img_dir: Optional[str] = None, 
-        random_crop_size: int = 224,
         resize_size: int = 256,
         is_test: bool = False
     ) -> None:

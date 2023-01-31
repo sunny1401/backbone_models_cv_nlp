@@ -60,7 +60,7 @@ class Denioser:
 
     def __init__(
         self, 
-        kernel_size: Union[int, Tuple[int. int]], 
+        kernel_size: Union[int, Tuple[int, int]], 
         blur_type: str = "gaussian"
     ) -> None:
         
