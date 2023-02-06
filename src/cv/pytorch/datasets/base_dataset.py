@@ -30,7 +30,6 @@ class PyTorchDataset(Dataset):
     ) -> None:
         super().__init__()
 
-
         dataset_location = os.path.join(CURRENT_ROOT_DIR, img_dir)
         os.makedirs(img_dir, exist_ok=True)
 
@@ -100,14 +99,17 @@ class CustomDataset(Dataset):
             and (data_file)
         )
         if img_dir_data_condition:
-            img_dir = os.path.join(CURRENT_ROOT_DIR, img_dir)
 
-            if not os.path.exists(img_dir):
+            if os.path.exists(os.path.join(CURRENT_ROOT_DIR, img_dir)):
+                img_dir = os.path.join(CURRENT_ROOT_DIR, img_dir)
+
+            elif not os.path.exists(img_dir):
                 raise FileNotFoundError(f"Image directory for {dataset_name} not found at {img_dir}")
 
+            if os.path.exists(os.path.join(CURRENT_ROOT_DIR, annotation_file)):
+                annotation_file = os.path.join(CURRENT_ROOT_DIR, annotation_file)
 
-            annotation_file = os.path.join(CURRENT_ROOT_DIR, annotation_file)
-            if not os.path.exists(annotation_file):
+            elif not os.path.exists(annotation_file):
                 raise FileNotFoundError(f"Could not fild a valid annotation file for the image dataset {dataset_name}")
 
                 
@@ -115,8 +117,10 @@ class CustomDataset(Dataset):
         
         elif train_test_data:
 
-            data_file = os.path.join(CURRENT_ROOT_DIR, data_file)
-            if not os.path.exists(data_file):
+            if os.path.exists(os.path.join(CURRENT_ROOT_DIR, data_file)):
+                data_file = os.path.join(CURRENT_ROOT_DIR, data_file)
+            
+            elif not os.path.exists(data_file):
                 raise FileNotFoundError("Training Data file not found. Please provide a valid file")
 
 
@@ -125,7 +129,6 @@ class CustomDataset(Dataset):
                 dataset_name=dataset_name
             )
 
-        
         else:
             raise ValueError(
                 "No useful data provided to the model."

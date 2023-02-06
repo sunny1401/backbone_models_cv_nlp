@@ -146,7 +146,7 @@ class FacialKeypointVCNN(VanillaCNN):
 
             if dropout_addition_options in {1, 4, 6}:
                 if isinstance(dropout_threshold, List):
-                    # TODO -> allowing for silen error
+                    # TODO -> allowing for silent error
                     # add dropout using idx
                     if len(dropout_threshold):
                         self.add_dropout(
