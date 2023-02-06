@@ -13,7 +13,7 @@ import torch
 from matplotlib import pyplot as plt
 import os
 import logging
-import json
+
 import sys
 
 
@@ -77,7 +77,7 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
             device=self.model_training_config.device,
             model_params=model_initialization_params,
         )
-        self._train_dataloader, self._validation_dataloader = self.__get_dataloader()
+        self._train_dataloader, self._validation_dataloader = self._get_dataloader()
         self.optimizer, self.criterion = self.initialize_optimization_parameters(
             lr=self.model_training_config.learning_rate
         )
@@ -120,7 +120,7 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
 
         raise NotImplementedError
         
-    def __get_dataloader(self):
+    def _get_dataloader(self):
 
         indices = np.arange(self.model_data_config.dataset_size)
         if self.model_data_config.shuffle_dataset:

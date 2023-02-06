@@ -1,11 +1,10 @@
 import torch.nn as nn
-from typing import Callable, Optional, Tuple, Union, Dict, List
+from typing import Callable, Optional, Tuple, Dict, List
 import torch.nn.functional as F
-from collections import OrderedDict
 from src.cv.pytorch.models.vanilla_cnn import VanillaCNN
 
 
-class ResnetBlock(VanillaCNN):
+class ResnetBlock(nn.Module):
 
     
     def __init__(
@@ -20,11 +19,11 @@ class ResnetBlock(VanillaCNN):
         batch_norm_epsilon: float = 1e-05,
         alpha_leaky_relu: float = 0.01,
         use_leaky_relu: bool = False,
-        downsample_function: Optional[Callable]= None,
+        downsample: Optional[Callable]= None,
     ):
         
         self._required_resnet_input_shape = 64
-
+        super().__init__()
         stride_resnet_map = dict(
             resnet_18=[stride, 1],
             resnet_34=[stride, 1],
@@ -33,26 +32,46 @@ class ResnetBlock(VanillaCNN):
             lresnet_152=[1, stride, 1],
         )
         self._alpha_leaky_relu = alpha_leaky_relu
-        self._batch_norm_epsilon = batch_norm_epsilon,
+        self._batch_norm_epsilon = batch_norm_epsilon
         self._batch_norm_momentum = batch_norm_momentum
-        self._downsample_function = downsample_function
+
         self._layer_list = []
         self._use_leaky_relu = use_leaky_relu
         self.final_output_size = -1
+        self.downsample = None
 
         self.__add_resnet_block(
             num_layers=num_layers,
             stride_list=stride_resnet_map[resnet_type],
+            downsample_stride=stride,
             input_size=input_shape,
             output_size=output_shape,
             layer_expansion=model_details["input_expansion"],
             kernel_size=model_details["kernel_size"],
             padding=model_details["padding"],
-            resnet_type=resnet_type
+            resnet_type=resnet_type,
+            downsample=downsample
         )
-        
+
+    def _downsample_resnet_input(self, input_channels, required_channel_size, given_starting_stride):
+
+        return nn.Sequential(
+            nn.Conv2d(
+                input_channels,
+                required_channel_size,
+                kernel_size=(1,1),
+                stride=given_starting_stride,
+                bias=False
+            ),
+            nn.BatchNorm2d(
+                required_channel_size, 
+                eps=self._batch_norm_epsilon, 
+                momentum=self._batch_norm_momentum)
+        )
+
     def __add_resnet_block(
         self,
+        downsample_stride: int,
         num_layers: int, 
         stride_list: List[int], 
         input_size: int, 
@@ -60,55 +79,73 @@ class ResnetBlock(VanillaCNN):
         layer_expansion: int, 
         kernel_size: Tuple, 
         padding: Tuple,
-        resnet_type: str = "resnet_18"
+        resnet_type: str = "resnet_18",
+        downsample: Optional[Callable] = None
     ):
 
         if isinstance(kernel_size, int):
-            kernel_size = [kernel_size] * len(num_layers)
+            kernel_size = [kernel_size] * num_layers
 
         if isinstance(padding, int):
-            padding = [padding] * len(num_layers)
+            padding = [padding] * num_layers
 
-        for i in range(num_layers):
+        start_index = 0
+        stride_list_iter = 0
 
-            resnet_block = nn.Sequential(
-                nn.conv2d(
+        block_layers = []
+        starting_output = output_size
+        starting_input = input_size
+
+        for i in range(start_index, num_layers):
+            block_layers.append(
+                nn.Conv2d(
                     input_size,
                     output_size,
-                    kernel_size=kernel_size[i],
-                    stride=stride_list[i],
-                    padding=padding[i],
+                    kernel_size=kernel_size[stride_list_iter],
+                    stride=stride_list[stride_list_iter],
+                    padding=padding[stride_list_iter],
                     bias=False
-                ),
+                )
+            )
+            block_layers.append(
                 nn.BatchNorm2d(
                     output_size, 
                     eps=self._batch_norm_epsilon, 
                     momentum=self._batch_norm_momentum
-                ),
+                )
             )
-            self._layer_list.append(resnet_block)
+            if i != num_layers -1:
+                if self._use_leaky_relu:
+                    block_layers.append(nn.LeakyReLU(negative_slope = self._alpha_leaky_relu))
+                else: block_layers.append(nn.ReLU())
+            stride_list_iter += 1
             input_size = output_size
-            if resnet_type in {"resnet_50", "resnet_101", "resnet_152"} and i == num_layers - 1:
-                
-                output_size = layer_expansion * output_size
+
+        resnet_block = nn.Sequential(*block_layers)
+        if downsample:
+            self.downsample = self._downsample_resnet_input(
+                input_channels=starting_input,
+                required_channel_size=starting_output * layer_expansion,
+                given_starting_stride=downsample_stride
+            )
+        
+        self._layer_list.append(resnet_block)
+        if resnet_type in {"resnet_50", "resnet_101", "resnet_152"} and i == num_layers - 1:
             
-            setattr(self, f"Basic{resnet_type.capitalize()}Block_{i+1}", resnet_block)
-            self.final_output_size = output_size
+            output_size = layer_expansion * output_size
+        
+        setattr(self, f"BasicBlock{i+1}", resnet_block)
+        self.final_output_size = output_size
 
     def forward(self, x):
 
         identity_x = x.clone()
-        for idx, callable_fn in enumerate(self._layer_list):
+        for callable_fn in self._layer_list:
 
             x = callable_fn(x)
-            if idx != len(self._layer_list):
-                if self._use_leaky_relu:
-                    x = F.leaky_relu(x, negative_slope = self._alpha_leaky_relu)
-                else:
-                    x = F.relu(x)
         
-        if self._downsample_function:
-            identity_x = self._downsample_function(identity_x)
+        if self.downsample:
+            identity_x = self.downsample(identity_x)
 
         x += identity_x
         if self._use_leaky_relu:
@@ -189,8 +226,8 @@ class Resnet(VanillaCNN):
         self,
         batch_norm_epsilon: float, 
         batch_norm_momentum: float,
-        input_shape: Tuple[int, int],
-        number_of_classes: Tuple[int, int],
+        input_shape: int,
+        number_of_classes: int,
         resnet_type: str = "resnet_18",
         use_leaky_relu_in_resnet: float = False,
         alpha_leaky_relu: float = 0.01,
@@ -221,34 +258,16 @@ class Resnet(VanillaCNN):
         self._downsample_call = 0
         self._per_block_starting_stride = {
             f"conv{i + 2}": per_block_starting_stride[i]
-            for i in range(len(self._per_block_starting_stride))
+            for i in range(len(per_block_starting_stride))
         }
-        self._final_output_size = -1
+
         self._resent_block(resnet_type=resnet_type)
-        self.get_pooling_layer(pool_type="avg", pool_size=(7,7), stride=1)
+        self.get_pooling_layer(pool_type="adaptive_avg", pool_size=(1,1))
         self.add_linear_layer(
-            in_features=self._final_output_size,
-            out_features=number_of_classes
+            in_features=self._required_resnet_input_channels,
+            out_features=number_of_classes,
+            add_relu=False
         )
-
-
-    def _downsample_resnet_input(self, required_channel_size, given_starting_stride):
-
-        self._downsample_call += 1
-        downsample = nn.Sequential(
-            nn.Conv2d(
-                self._required_resnet_input_channels,
-                required_channel_size,
-                kernel_size=(1,1),
-                stride=given_starting_stride,
-                bias=False
-            ),
-            nn.BatchNorm2d(required_channel_size)
-        )
-
-        # self._net.append((f"Downsample2d{self._downsample_call}", downsample))
-        # setattr(self, f"Downsample2d{self._downsample_call}", downsample)
-        return downsample
 
     def _resent_block(self, resnet_type):
 
@@ -267,16 +286,6 @@ class Resnet(VanillaCNN):
                 self._required_resnet_input_channels != starting_output
             )
 
-            if downsample_condition:
-                downsample = self._downsample_resnet_input(
-                    required_channel_size=starting_output,
-                    given_starting_stride=self._per_block_starting_stride[layer_name]
-                )
-
-                num_layers = num_layers - 1
-            else:
-                downsample = None
-
             resnet = ResnetBlock(
                 input_shape=self._required_resnet_input_channels,
                 output_shape=starting_output,
@@ -285,14 +294,16 @@ class Resnet(VanillaCNN):
                 stride=self._per_block_starting_stride[layer_name],
                 resnet_type=resnet_type,
                 use_leaky_relu=self._use_leaky_relu,
-                downsample_function=downsample
+                downsample = downsample_condition,
+                batch_norm_epsilon=self._batch_norm_epsilon,
+                batch_norm_momentum=self._batch_norm_momentum
             )
-            self._net.append((f"{resnet_type}{layer_name}Block"), resnet)
+            self._net.append((f"{resnet_type}{layer_name}Block", resnet))
             setattr(
                 self, 
-                f"{resnet_type}{layer_name}Block", resnet
+                f"{resnet_type.capitalize()}{layer_name}Block", resnet
             )
-            self._final_output_size = resnet.final_output_size
+            self._required_resnet_input_channels = resnet.final_output_size
 
     def forward(self, x):
 
