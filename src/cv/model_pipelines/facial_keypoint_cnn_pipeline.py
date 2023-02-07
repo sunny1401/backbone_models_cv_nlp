@@ -131,7 +131,7 @@ class FacialCNNTrainingPipeline(CNNTrainingPipeline):
                 outputs = outputs.cpu().data.numpy()
             output_keyp.append(outputs)
 
-        return [preds for batch in output_keyp for preds in batch]
+        return [preds.cpu().detach().numpy() for batch in output_keyp for preds in batch]
 
     def generate_test_dataloader_from_dataset(self, dataset: Dataset) -> List:
 

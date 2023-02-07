@@ -89,14 +89,14 @@ class ResnetBlock(nn.Module):
         if isinstance(padding, int):
             padding = [padding] * num_layers
 
-        start_index = 0
         stride_list_iter = 0
 
         block_layers = []
         starting_output = output_size
         starting_input = input_size
 
-        for i in range(start_index, num_layers):
+        for i in range(num_layers):
+
             block_layers.append(
                 nn.Conv2d(
                     input_size,
@@ -118,7 +118,7 @@ class ResnetBlock(nn.Module):
                 if self._use_leaky_relu:
                     block_layers.append(nn.LeakyReLU(negative_slope = self._alpha_leaky_relu))
                 else: block_layers.append(nn.ReLU())
-            stride_list_iter += 1
+            stride_list_iter += i%len(kernel_size)
             input_size = output_size
 
         resnet_block = nn.Sequential(*block_layers)
@@ -230,7 +230,7 @@ class Resnet(VanillaCNN):
         number_of_classes: int,
         resnet_type: str = "resnet_18",
         use_leaky_relu_in_resnet: float = False,
-        alpha_leaky_relu: float = 0.01,
+        alpha_leaky_relu: bool = 0.01,
         per_block_starting_stride: List = [1, 2, 2, 2]
     ):
 
