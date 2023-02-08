@@ -1,5 +1,4 @@
 from src.cv.model_pipelines.facial_keypoint_cnn_pipeline import FacialCNNTrainingPipeline
-from src.cv.pytorch.models.resnet_model_architectures import RESNET_MODEL_ARCHITECTURES
 from src.cv.pytorch.models.resnet import VanillaResnet
 from typing import Dict, List, Optional
 import numpy as np
@@ -44,8 +43,19 @@ class FacialResnetTrainingPipeline(FacialCNNTrainingPipeline):
             load_model_from_path=load_model_from_path
         )
 
-    def _initialize_model(self, device, model_params, resnet_type):
-        network = RESNET_MODEL_ARCHITECTURES[resnet_type]
-        model_params["resnet_stride_output_combination"] = network
+    def _initialize_model(self, device, model_params):
+
+        other_required_keys = dict(
+            dropout_threshold=0.09,
+            num_linear_layers=1,
+            output_channels=None,
+            add_dropout_to_linear_layers=True
+        
+        )
+        wraping_layers_map = {}
+        for key, value in other_required_keys.items():
+            wraping_layers_map[key] = model_params.pop(key, value)
+
         model = VanillaResnet(**model_params).to(device)
+        model.wrap_up_network(**wraping_layers_map)
         return model
