@@ -52,6 +52,7 @@ class ResnetBasicBlock(VanillaCNN):
                 kernel_size=(1,1),
                 stride=stride,
                 add_pooling=False,
+                add_to_network=False
             )
         
     def forward(self, img):
@@ -159,7 +160,7 @@ class VanillaResnet(VanillaCNN):
         batch_norm_momentum: float = 0.1,
         cnn_batch_norm_flag: bool = True,
         linear_batch_norm_flag: bool = True,
-        use_relu_in_resnet: bool = False
+        use_leaky_relu_in_resnet: bool = False
     ):
 
         # TODO - add dropout support within resnet
@@ -190,7 +191,7 @@ class VanillaResnet(VanillaCNN):
               self.add_basic_block(
                 out_channels=output, 
                 stride=stride,
-                use_leaky_relu=use_relu_in_resnet,
+                use_leaky_relu=use_leaky_relu_in_resnet,
                 num_layers = num_layers
             )  
 
@@ -198,7 +199,7 @@ class VanillaResnet(VanillaCNN):
                 self.add_bottleneck_block(
                     out_channels=output,
                     stride=stride,
-                    use_leaky_relu=use_relu_in_resnet,
+                    use_leaky_relu=use_leaky_relu_in_resnet,
                     num_layers = num_layers
                 )
 
@@ -211,15 +212,15 @@ class VanillaResnet(VanillaCNN):
         use_leaky_relu: bool = True
     ):
 
-        for _ in range(num_layers):
-            self._net.append(
-                ("BasicBlock", ResnetBasicBlock(
+        for i in range(num_layers):
+            basic_block = ResnetBasicBlock(
                     in_channels=self._required_input_channels,
                     out_channels=out_channels, 
                     stride=stride,
                     use_leaky_relu=use_leaky_relu
                 )
-            ))
+            self._net.append(("BasicBlock", basic_block))
+            setattr(self, f"BasicBlock{i}", basic_block)
             self._required_input_channels = out_channels * ResnetBasicBlock.expansion
 
     def add_bottleneck_block(
@@ -229,23 +230,23 @@ class VanillaResnet(VanillaCNN):
         stride: int, 
         use_leaky_relu: bool = True
     ):
-        for _ in range(num_layers):
-            self._net.append(
-                ("BottleneckBlock", ResnetBottleneckBlock(
+        for i in range(num_layers):
+            bottleneck_block = ResnetBottleneckBlock(
                     in_channels=self._required_input_channels,
                     out_channels=out_channels, 
                     stride=stride,
                     use_leaky_relu=use_leaky_relu
                 )
-            ))
+            self._net.append(("BottleneckBlock", bottleneck_block))
+            setattr(self, f"BasicBlock{i}", bottleneck_block)
             self._required_input_channels = out_channels * ResnetBottleneckBlock.expansion
     
     def wrap_up_network(
         self, 
-        dropout_threshold: Union[float, List[float]],
+        dropout_threshold: Optional[Union[float, List[float]]] = 0.01,
         num_linear_layers: int = 1, 
         output_channels: Optional[List[int]] = None,
-        add_dropout_to_layers: bool = True,
+        add_dropout_to_linear_layers: bool = True,
     ):
 
         if num_linear_layers > 1:
@@ -257,31 +258,38 @@ class VanillaResnet(VanillaCNN):
                     f"output neurons = {self._num_classes}. "
                     "For other layers please provide relevant outputs"
                 )
-        if add_dropout_to_layers and isinstance(dropout_threshold, List):
+        if add_dropout_to_linear_layers and isinstance(dropout_threshold, List):
             if not len(dropout_threshold) == num_linear_layers - 1:
 
                 raise ValueError("Please provide dropout for all layers save last")
 
-        for i in range(num_linear_layers):
-            if i == num_linear_layers[-1]:
-                self._add_batch_norm_after_linear = False
-                self.add_linear_layer(
-                    in_features=self._required_input_channels,
-                    out_features=self._num_classes,
-                    add_relu=False
+        for i in range(num_linear_layers - 1):
+
+            self.add_linear_layer(
+                in_features=self._required_input_channels,
+                out_features=output_channels[i],
+                add_relu=True
+            )
+            self._required_input_channels = output_channels[i]
+            if add_dropout_to_linear_layers:
+                if isinstance(dropout_threshold, List):
+                    self.add_dropout(
+                        dropout_threshold=dropout_threshold[i]
+                    )
+                else:
+                    self.add_dropout(dropout_threshold=dropout_threshold)
+
+        self._add_batch_norm_after_linear = False
+        if add_dropout_to_linear_layers:
+            if isinstance(dropout_threshold, List):
+                self.add_dropout(
+                    dropout_threshold=dropout_threshold[-1]
                 )
             else:
+                self.add_dropout(dropout_threshold=dropout_threshold)
 
-                self.add_linear_layer(
-                    in_features=self._required_input_channels,
-                    out_features=output_channels[i],
-                    add_relu=True
-                )
-                self._required_input_channels = output_channels[i]
-                if add_dropout_to_layers:
-                    if isinstance(dropout_threshold, List):
-                        self.add_dropout(
-                            dropout_threshold=dropout_threshold[i]
-                        )
-                    else:
-                        self.add_dropout(dropout_threshold=dropout_threshold)
+        self.add_linear_layer(
+            in_features=self._required_input_channels,
+            out_features=self._num_classes,
+            add_relu=False
+        )
