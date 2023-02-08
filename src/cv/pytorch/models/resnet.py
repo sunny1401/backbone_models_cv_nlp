@@ -1,7 +1,8 @@
 import torch.nn as nn
-from typing import Optional, Tuple, Dict, List, Union
+from typing import Optional, Dict, List, Union
 import torch.nn.functional as F
 from src.cv.pytorch.models.vanilla_cnn import VanillaCNN
+import torch
 
 
 class ResnetBasicBlock(VanillaCNN):
@@ -26,7 +27,7 @@ class ResnetBasicBlock(VanillaCNN):
             linear_batch_norm_flag=backpropagation_relu_details.get("linear_batch_norm_flag", True)
         )
         self._use_leaky_relu = use_leaky_relu
-        
+        print(in_channels, out_channels)
         self.single_cnn_activation_step(
             input_channels=in_channels,
             output_channels=out_channels, 
@@ -94,7 +95,7 @@ class ResnetBottleneckBlock(VanillaCNN):
             linear_batch_norm_flag=backpropagation_relu_details.get("linear_batch_norm_flag", True)
         )
         self._use_leaky_relu = use_leaky_relu
-
+        print(in_channels, out_channels)
         self.single_cnn_activation_step(
             input_channels=in_channels,
             output_channels=out_channels, 
@@ -111,7 +112,7 @@ class ResnetBottleneckBlock(VanillaCNN):
         )        
 
         self.single_cnn_activation_step(
-            input_channels=in_channels,
+            input_channels=out_channels,
             output_channels=out_channels, 
             kernel_size=(1,1),
             add_pooling=False,
@@ -134,7 +135,7 @@ class ResnetBottleneckBlock(VanillaCNN):
 
         identity = img.clone()
         for _, callable in self._net:
-
+            
             img = callable(img)
 
         img += self.downsample_identity(identity)
@@ -151,6 +152,7 @@ class VanillaResnet(VanillaCNN):
 
     def __init__(
         self, 
+        device: str,
         in_channels: int, 
         num_classes: int, 
         initialize_cnn: bool, 
@@ -160,7 +162,7 @@ class VanillaResnet(VanillaCNN):
         batch_norm_momentum: float = 0.1,
         cnn_batch_norm_flag: bool = True,
         linear_batch_norm_flag: bool = True,
-        use_leaky_relu_in_resnet: bool = False
+        use_leaky_relu_in_resnet: bool = False,
     ):
 
         # TODO - add dropout support within resnet
@@ -171,7 +173,9 @@ class VanillaResnet(VanillaCNN):
             cnn_batch_norm_flag=cnn_batch_norm_flag,
             linear_batch_norm_flag=linear_batch_norm_flag
         )
-
+        self._device = device
+        self._basic_block_count = 1
+        self._bottleneck_block_count = 1
         self._required_input_channels = 64
         if initialize_cnn:
             self.single_cnn_activation_step(
@@ -188,14 +192,16 @@ class VanillaResnet(VanillaCNN):
         for (block_type, stride, output, num_layers) in resnet_stride_output_combination:
 
             if block_type == "BasicBlock":
-              self.add_basic_block(
+                self._basic_block_count += 1
+                self.add_basic_block(
                 out_channels=output, 
                 stride=stride,
                 use_leaky_relu=use_leaky_relu_in_resnet,
                 num_layers = num_layers
-            )  
+                )  
 
             elif block_type == "BottleneckBlock":
+                self._bottleneck_block_count += 1
                 self.add_bottleneck_block(
                     out_channels=output,
                     stride=stride,
@@ -211,17 +217,18 @@ class VanillaResnet(VanillaCNN):
         stride: int, 
         use_leaky_relu: bool = True
     ):
-
+        in_channels = self._required_input_channels
         for i in range(num_layers):
             basic_block = ResnetBasicBlock(
-                    in_channels=self._required_input_channels,
+                    in_channels=in_channels,
                     out_channels=out_channels, 
                     stride=stride,
                     use_leaky_relu=use_leaky_relu
-                )
+                ).to(self._device)
             self._net.append(("BasicBlock", basic_block))
-            setattr(self, f"BasicBlock{i}", basic_block)
-            self._required_input_channels = out_channels * ResnetBasicBlock.expansion
+            setattr(self, f"BasicBlock_conv{self._basic_block_count}x_{i+1}", basic_block)
+            in_channels = out_channels * ResnetBasicBlock.expansion
+        self._required_input_channels = out_channels
 
     def add_bottleneck_block(
         self, 
@@ -230,16 +237,19 @@ class VanillaResnet(VanillaCNN):
         stride: int, 
         use_leaky_relu: bool = True
     ):
+        in_channels = self._required_input_channels
         for i in range(num_layers):
             bottleneck_block = ResnetBottleneckBlock(
-                    in_channels=self._required_input_channels,
+                    in_channels=in_channels,
                     out_channels=out_channels, 
                     stride=stride,
                     use_leaky_relu=use_leaky_relu
-                )
+                ).to(self._device)
             self._net.append(("BottleneckBlock", bottleneck_block))
-            setattr(self, f"BasicBlock{i}", bottleneck_block)
-            self._required_input_channels = out_channels * ResnetBottleneckBlock.expansion
+            setattr(self, f"BottleneckBlock_conv{self._bottleneck_block_count}x_{i+1}", bottleneck_block)
+            in_channels = out_channels * ResnetBasicBlock.expansion
+
+        self._required_input_channels = out_channels
     
     def wrap_up_network(
         self, 
