@@ -8,12 +8,12 @@ torch.backends.cudnn.deterministic = True
 
 class VanillaCNN(nn.Module):
     def __init__(
-        self, 
-        alpha_leaky_relu: float, 
+        self,  
         cnn_batch_norm_flag: bool,
-        batch_norm_epsilon: float,
-        batch_norm_momentum: float,
-        linear_batch_norm_flag: float,
+        alpha_leaky_relu: float = 0.001,
+        batch_norm_epsilon: float = 1e-05,
+        batch_norm_momentum: float = 0.1,
+        linear_batch_norm_flag: float = True,
     ):
         
         super(VanillaCNN, self).__init__()
@@ -38,8 +38,11 @@ class VanillaCNN(nn.Module):
         pool_stride: Optional[int] = None,
         pool_padding: int = 1,
         add_pooling: bool = True,
+        add_batch_norm: bool = True,
         padding: int = 1,
-        stride: int = 1
+        stride: int = 1,
+        add_to_network: bool = True,
+        non_relu_network: bool = False
     ):
         
         # TODO - comments and docstring
@@ -53,12 +56,13 @@ class VanillaCNN(nn.Module):
                 padding=padding
             )
         )
-        if self._add_batch_norm_after_cnn:
+        if self._add_batch_norm_after_cnn or add_batch_norm:
             layers.append(
                 self.get_batch_norm_layer(num_channels=output_channels)
             )
 
-        layers.append(nn.LeakyReLU(negative_slope=self._alpha_leaky_relu))
+        if not non_relu_network:
+            layers.append(nn.LeakyReLU(negative_slope=self._alpha_leaky_relu))
         
         if add_pooling:
             layers.append(
@@ -70,8 +74,12 @@ class VanillaCNN(nn.Module):
             )
 
         final_conv_layer = nn.Sequential(*layers)
-        self._net.append((f"conv2d{self._cnn_call_iteration}", final_conv_layer))
-        setattr(self, f"conv2d{self._cnn_call_iteration}", final_conv_layer)
+        if add_to_network:
+            self._net.append((f"conv{self._cnn_call_iteration}", final_conv_layer))
+            setattr(self, f"conv{self._cnn_call_iteration}", final_conv_layer)
+
+        else:
+            return final_conv_layer
             
 
     def get_pooling_layer(
@@ -153,15 +161,11 @@ class VanillaCNN(nn.Module):
     def forward(self, sample):
         
         flattening_done = False
-        for idx, item in enumerate(self._net):
+        for _,  item in enumerate(self._net):
             (call_type, callable_f)  = item
             
             flatten_condition = (
-                not flattening_done and 
-                (
-                    "linear" in call_type or 
-                    "dropout" in call_type and len(self._net) - idx in {1, 2}
-                )
+                not flattening_done and "linear" in call_type
             )
             
             if flatten_condition:
