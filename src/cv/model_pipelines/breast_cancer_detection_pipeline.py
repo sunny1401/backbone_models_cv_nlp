@@ -45,7 +45,7 @@ class BreastCancerTrainingPipeline(CNNTrainingPipeline):
         )
 
     def initialize_optimization_parameters(self, lr=0.0005, weights = None) -> Dict:
-        criterion = nn.nn.BCEWithLogitsLoss(weights)
+        criterion = nn.BCEWithLogitsLoss(weights)
         optimizer = optim.Adam(
             self.model.parameters(), lr=lr
         )
