@@ -72,7 +72,7 @@ class BreastCancerTrainingPipeline(CNNTrainingPipeline):
     def _generate_train_validation_indices(self, train_on_full_dataset: bool = False):
         columns_required = ["image_id", "patient_id", "laterality", "cancer"]
         if not train_on_full_dataset:
-            test_pct = 1 - self.model_training_config.train_data_pct
+            test_pct = 1 - self.model_data_config.train_data_pct
             if self.model_data_config.validation_size:
                 df = self.dataset.image_labels[columns_required]
 
