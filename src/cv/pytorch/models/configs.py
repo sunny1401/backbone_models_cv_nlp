@@ -11,6 +11,7 @@ class ModelDataConfig:
     train_size: int
     validation_size: int
     show_dataset_plot: bool = True
+    train_data_pct: float = 0.7
 
     def __init__(
         self, 
@@ -24,6 +25,10 @@ class ModelDataConfig:
 
         """
         """
+        if train_data_pct > 1:
+            raise ValueError(
+                "Value needs to be less than or equal to 1."
+            )
 
         np.random.seed(random_seed)
         self.random_seed = random_seed
@@ -33,6 +38,7 @@ class ModelDataConfig:
         self.validation_size = dataset_size - self.train_size
         self.shuffle_dataset = shuffle_dataset
         self.show_dataset_plot = show_dataset_plots
+        self.train_data_pct = train_data_pct
     
 
 @dataclass(init=True)
