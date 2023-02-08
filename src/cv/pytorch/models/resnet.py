@@ -2,7 +2,7 @@ import torch.nn as nn
 from typing import Optional, Dict, List, Union
 import torch.nn.functional as F
 from src.cv.pytorch.models.vanilla_cnn import VanillaCNN
-import gc
+import torch
 
 
 class ResnetBasicBlock(VanillaCNN):
@@ -135,7 +135,7 @@ class ResnetBottleneckBlock(VanillaCNN):
 
         identity = img.clone()
         for _, callable in self._net:
-
+            
             img = callable(img)
 
         img += self.downsample_identity(identity)
@@ -152,6 +152,7 @@ class VanillaResnet(VanillaCNN):
 
     def __init__(
         self, 
+        device: str,
         in_channels: int, 
         num_classes: int, 
         initialize_cnn: bool, 
@@ -161,7 +162,7 @@ class VanillaResnet(VanillaCNN):
         batch_norm_momentum: float = 0.1,
         cnn_batch_norm_flag: bool = True,
         linear_batch_norm_flag: bool = True,
-        use_leaky_relu_in_resnet: bool = False
+        use_leaky_relu_in_resnet: bool = False,
     ):
 
         # TODO - add dropout support within resnet
@@ -172,6 +173,7 @@ class VanillaResnet(VanillaCNN):
             cnn_batch_norm_flag=cnn_batch_norm_flag,
             linear_batch_norm_flag=linear_batch_norm_flag
         )
+        self._device = device
         self._basic_block_count = 1
         self._bottleneck_block_count = 1
         self._required_input_channels = 64
@@ -222,7 +224,7 @@ class VanillaResnet(VanillaCNN):
                     out_channels=out_channels, 
                     stride=stride,
                     use_leaky_relu=use_leaky_relu
-                )
+                ).to(self._device)
             self._net.append(("BasicBlock", basic_block))
             setattr(self, f"BasicBlock_conv{self._basic_block_count}x_{i+1}", basic_block)
             in_channels = out_channels * ResnetBasicBlock.expansion
@@ -242,7 +244,7 @@ class VanillaResnet(VanillaCNN):
                     out_channels=out_channels, 
                     stride=stride,
                     use_leaky_relu=use_leaky_relu
-                )
+                ).to(self._device)
             self._net.append(("BottleneckBlock", bottleneck_block))
             setattr(self, f"BottleneckBlock_conv{self._bottleneck_block_count}x_{i+1}", bottleneck_block)
             in_channels = out_channels * ResnetBasicBlock.expansion
