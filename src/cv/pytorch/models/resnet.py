@@ -2,7 +2,6 @@ import torch.nn as nn
 from typing import Optional, Dict, List, Union
 import torch.nn.functional as F
 from src.cv.pytorch.models.vanilla_cnn import VanillaCNN
-import torch
 
 
 class ResnetBasicBlock(VanillaCNN):
@@ -14,6 +13,7 @@ class ResnetBasicBlock(VanillaCNN):
         in_channels: int, 
         out_channels: int, 
         backpropagation_relu_details: Optional[Dict] = None, 
+        check_for_downsample: bool = False,
         stride=1,
         use_leaky_relu: bool = False
     ) -> None:
@@ -27,26 +27,28 @@ class ResnetBasicBlock(VanillaCNN):
             linear_batch_norm_flag=backpropagation_relu_details.get("linear_batch_norm_flag", True)
         )
         self._use_leaky_relu = use_leaky_relu
-        print(in_channels, out_channels)
         self.single_cnn_activation_step(
             input_channels=in_channels,
             output_channels=out_channels, 
             kernel_size=(3,3),
             stride=stride,
+            padding=1,
             add_pooling=False,
         )
 
         self.single_cnn_activation_step(
             input_channels=out_channels,
             output_channels=out_channels, 
-            kernel_size=(1,1),
+            kernel_size=(3,3),
+            padding=1,
             add_pooling=False,
             non_relu_network=True
         )
 
-        self.downsample_identity = nn.Sequential()
+        self.downsample_identity = None
 
-        if stride != 1 or in_channels != self.expansion*out_channels:
+        if check_for_downsample and (stride != 1 or in_channels != self.expansion*out_channels):
+
             self.downsample_identity = self.single_cnn_activation_step(
                 input_channels=in_channels,
                 output_channels=out_channels*self.expansion, 
@@ -63,12 +65,14 @@ class ResnetBasicBlock(VanillaCNN):
 
             img = callable(img)
 
-        img += self.downsample_identity(identity)
+        if self.downsample_identity:
+            identity = self.downsample_identity(identity)
+        img += identity
         if self._use_leaky_relu:
-            F.leaky_relu(negative_slope=self._alpha_leaky_relu, inplace=True)
+            img = F.leaky_relu(img, negative_slope=self._alpha_leaky_relu)
 
         else:
-            F.relu()
+            img = F.relu(img)
 
         return img
 
@@ -82,6 +86,7 @@ class ResnetBottleneckBlock(VanillaCNN):
         in_channels: int, 
         out_channels: int, 
         backpropagation_relu_details: Optional[Dict] = None, 
+        check_for_downsample: bool = False,
         stride :int =1,
         use_leaky_relu: bool = False,
     ) -> None:
@@ -95,7 +100,7 @@ class ResnetBottleneckBlock(VanillaCNN):
             linear_batch_norm_flag=backpropagation_relu_details.get("linear_batch_norm_flag", True)
         )
         self._use_leaky_relu = use_leaky_relu
-        print(in_channels, out_channels)
+
         self.single_cnn_activation_step(
             input_channels=in_channels,
             output_channels=out_channels, 
@@ -108,6 +113,7 @@ class ResnetBottleneckBlock(VanillaCNN):
             output_channels=out_channels, 
             kernel_size=(3,3),
             stride=stride,
+            padding=1,
             add_pooling=False,
         )        
 
@@ -119,9 +125,9 @@ class ResnetBottleneckBlock(VanillaCNN):
             add_to_network=False
         )
 
-        self.downsample_identity = nn.Sequential()
+        self.downsample_identity = None
 
-        if stride != 1 or in_channels != self.expansion*out_channels:
+        if check_for_downsample and (stride != 1 or in_channels != self.expansion*out_channels):
             self.downsample_identity = self.single_cnn_activation_step(
                 input_channels=in_channels,
                 output_channels=out_channels*self.expansion, 
@@ -138,12 +144,13 @@ class ResnetBottleneckBlock(VanillaCNN):
             
             img = callable(img)
 
-        img += self.downsample_identity(identity)
+        if self.downsample_identity:
+            img += self.downsample_identity(identity)
         if self._use_leaky_relu:
-            F.leaky_relu(negative_slope=self._alpha_leaky_relu, inplace=True)
+            img = F.leaky_relu(img, negative_slope=self._alpha_leaky_relu)
 
         else:
-            F.relu()
+            img= F.relu(img)
 
         return img
 
@@ -186,7 +193,8 @@ class VanillaResnet(VanillaCNN):
                 padding=3,
                 pool_type="max",
                 pool_stride=2,
-                pool_size=(3,3)
+                pool_size=(3,3),
+                pool_padding=1,
             )
         self._num_classes = num_classes
         for (block_type, stride, output, num_layers) in resnet_stride_output_combination:
@@ -218,13 +226,18 @@ class VanillaResnet(VanillaCNN):
         use_leaky_relu: bool = True
     ):
         in_channels = self._required_input_channels
+        check_for_downsample = False
         for i in range(num_layers):
+            if i == 0:
+                check_for_downsample = True
+
             basic_block = ResnetBasicBlock(
-                    in_channels=in_channels,
-                    out_channels=out_channels, 
-                    stride=stride,
-                    use_leaky_relu=use_leaky_relu
-                ).to(self._device)
+                check_for_downsample=check_for_downsample,
+                in_channels=in_channels,
+                out_channels=out_channels, 
+                stride=stride,
+                use_leaky_relu=use_leaky_relu
+            ).to(self._device)
             self._net.append(("BasicBlock", basic_block))
             setattr(self, f"BasicBlock_conv{self._basic_block_count}x_{i+1}", basic_block)
             in_channels = out_channels * ResnetBasicBlock.expansion
@@ -238,13 +251,17 @@ class VanillaResnet(VanillaCNN):
         use_leaky_relu: bool = True
     ):
         in_channels = self._required_input_channels
+        check_for_downsample = False
         for i in range(num_layers):
+            if i == 0:
+                check_for_downsample = True
             bottleneck_block = ResnetBottleneckBlock(
-                    in_channels=in_channels,
-                    out_channels=out_channels, 
-                    stride=stride,
-                    use_leaky_relu=use_leaky_relu
-                ).to(self._device)
+                check_for_downsample=check_for_downsample,
+                in_channels=in_channels,
+                out_channels=out_channels, 
+                stride=stride,
+                use_leaky_relu=use_leaky_relu
+            ).to(self._device)
             self._net.append(("BottleneckBlock", bottleneck_block))
             setattr(self, f"BottleneckBlock_conv{self._bottleneck_block_count}x_{i+1}", bottleneck_block)
             in_channels = out_channels * ResnetBasicBlock.expansion
@@ -297,6 +314,12 @@ class VanillaResnet(VanillaCNN):
                 )
             else:
                 self.add_dropout(dropout_threshold=dropout_threshold)
+
+        self.get_pooling_layer(
+            pool_size=(1,1),
+            pool_type="adaptive_avg",
+            add_to_network=True
+        )
 
         self.add_linear_layer(
             in_features=self._required_input_channels,

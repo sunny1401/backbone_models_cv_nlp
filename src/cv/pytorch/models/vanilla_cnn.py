@@ -39,7 +39,7 @@ class VanillaCNN(nn.Module):
         pool_padding: int = 1,
         add_pooling: bool = True,
         add_batch_norm: bool = True,
-        padding: int = 1,
+        padding: int = 0,
         stride: int = 1,
         add_to_network: bool = True,
         non_relu_network: bool = False
@@ -88,7 +88,7 @@ class VanillaCNN(nn.Module):
         pool_size: Tuple[int, int] = (2,2), 
         add_to_network: bool = True,
         stride: Optional[int] = None,
-        padding: int = 1, 
+        padding: int = 0, 
     ):
 
         pool_type_dict = {

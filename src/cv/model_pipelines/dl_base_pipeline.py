@@ -55,6 +55,7 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
         
         required_non_essential_arguments = {
             "alpha_leaky_relu",
+            "device"
         }
         model_params_init_condition =  (
             model_initialization_params.get("cnn_batch_norm_flag", False) or 
