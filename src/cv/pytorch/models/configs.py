@@ -25,9 +25,9 @@ class ModelDataConfig:
 
         """
         """
-        if train_data_pct > 1:
+        if train_data_pct > 1 or train_data_pct <= 0:
             raise ValueError(
-                "Value needs to be less than or equal to 1."
+                "Value for train_data_pct needs to be between 0 and 1."
             )
 
         np.random.seed(random_seed)

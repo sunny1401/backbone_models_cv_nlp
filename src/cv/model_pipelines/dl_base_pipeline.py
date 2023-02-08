@@ -149,7 +149,7 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
                 num_workers=mp.cpu_count() - 2, 
                 sampler=train_sampler
             )
-            if validation_indices:
+            if validation_indices is not None:
                 validation_sampler = SubsetRandomSampler(validation_indices)
                 validation_dataloader = DataLoader(
                     self.dataset, 
@@ -166,7 +166,7 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
                 batch_size=self.model_training_config.batch_size, 
                 num_workers=mp.cpu_count() - 2, 
             )
-            if validation_indices:
+            if validation_indices is not None:
                 validation_data = [self.dataset[i] for i in validation_indices]
                 validation_dataloader = DataLoader(
                     validation_data,
