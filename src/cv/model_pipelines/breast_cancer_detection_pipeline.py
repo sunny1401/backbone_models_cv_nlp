@@ -71,23 +71,23 @@ class BreastCancerTrainingPipeline(CNNTrainingPipeline):
 
     def _generate_train_validation_indices(self, train_on_full_dataset: bool = False):
         columns_required = ["image_id", "patient_id", "laterality", "cancer"]
+        df = self.dataset.dataset.image_labels[columns_required]
         if not train_on_full_dataset:
             test_pct = 1 - self.model_data_config.train_data_pct
             if self.model_data_config.validation_size:
-                df = self.dataset.image_labels[columns_required]
 
-            df["patient_id"] = df.apply(
-                lambda row: f"{row['patient_id']}_{row['laterality']}", axis=1).drop(columns=["laterality"])
+                df["patient_id"] = df.apply(
+                    lambda row: f"{row['patient_id']}_{row['laterality']}", axis=1).drop(columns=["laterality"])
 
-            num_cancer_val_ids = round(df[df.cancer == 1]["patient_id"].nunique() * test_pct)
-            num_ncancer_val_ids = round(df[df.cancer == 0]["patient_id"].nunique() * test_pct)
-            cancer_val_ids = list(np.random.choice(df[df.cancer == 1]["patient_id"].unique(), num_cancer_val_ids))
-            num_ncancer_val_ids = list(np.random.choice(df[df.cancer == 0]["patient_id"].unique(), num_ncancer_val_ids))
+                num_cancer_val_ids = round(df[df.cancer == 1]["patient_id"].nunique() * test_pct)
+                num_ncancer_val_ids = round(df[df.cancer == 0]["patient_id"].nunique() * test_pct)
+                cancer_val_ids = list(np.random.choice(df[df.cancer == 1]["patient_id"].unique(), num_cancer_val_ids))
+                num_ncancer_val_ids = list(np.random.choice(df[df.cancer == 0]["patient_id"].unique(), num_ncancer_val_ids))
 
-            val_ids = cancer_val_ids + num_ncancer_val_ids
-            train_ids = [patient_id for patient_id in df.patient_id.unique() if patient_id not in val_ids]
-            val_indices = df[df.patient_id.isin(val_ids)].index
-            train_indices = df[df.patient_id.isin(train_ids)].index
+                val_ids = cancer_val_ids + num_ncancer_val_ids
+                train_ids = [patient_id for patient_id in df.patient_id.unique() if patient_id not in val_ids]
+                val_indices = df[df.patient_id.isin(val_ids)].index
+                train_indices = df[df.patient_id.isin(train_ids)].index
 
         else:
             train_indices = df.index.tolist()
