@@ -78,7 +78,7 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
             device=self.model_training_config.device,
             model_params=model_initialization_params,
         )
-        self._train_dataloader, self._validation_dataloader = self._get_dataloader()
+        self._train_dataloader, self._validation_dataloader = self.get_dataloader()
         self.optimizer, self.criterion = self.initialize_optimization_parameters(
             lr=self.model_training_config.learning_rate
         )
@@ -133,11 +133,9 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
         if not train_on_full_dataset and self.model_data_config.validation_size:
             validation_indices = indices[self.model_data_config.train_size:]
 
-        return train_indices, validation_indices
-
+        return train_indices, validation_indices       
         
-        
-    def _get_dataloader(self, train_on_full_dataset: bool = False):
+    def get_dataloader(self, train_on_full_dataset: bool = False):
         
         train_indices, validation_indices = self._generate_train_validation_indices(
             train_on_full_dataset=train_on_full_dataset
