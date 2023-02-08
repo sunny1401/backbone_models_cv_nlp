@@ -1,4 +1,4 @@
-from typing import Tuple, Dict, Optional
+from typing import Tuple, Dict, Optional, List
 from abc import abstractmethod, ABCMeta
 from src.cv.pytorch.models.configs import (
     ModelTrainingConfig, ModelDataConfig
@@ -13,7 +13,7 @@ import torch
 from matplotlib import pyplot as plt
 import os
 import logging
-import json
+
 import sys
 
 
@@ -55,6 +55,7 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
         
         required_non_essential_arguments = {
             "alpha_leaky_relu",
+            "device"
         }
         model_params_init_condition =  (
             model_initialization_params.get("cnn_batch_norm_flag", False) or 
@@ -77,7 +78,7 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
             device=self.model_training_config.device,
             model_params=model_initialization_params,
         )
-        self._train_dataloader, self._validation_dataloader = self.__get_dataloader()
+        self._train_dataloader, self._validation_dataloader = self.get_dataloader()
         self.optimizer, self.criterion = self.initialize_optimization_parameters(
             lr=self.model_training_config.learning_rate
         )
@@ -119,13 +120,26 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
         pass
 
         raise NotImplementedError
-        
-    def __get_dataloader(self):
 
+    def _generate_train_validation_indices(self, train_on_full_dataset: bool = False):
         indices = np.arange(self.model_data_config.dataset_size)
         if self.model_data_config.shuffle_dataset:
             np.random.shuffle(indices)
-        train_indices = indices[:self.model_data_config.train_size]
+        if train_on_full_dataset:
+            train_indices = indices.tolist()
+        else:
+            train_indices = indices[:self.model_data_config.train_size]
+        validation_indices = None
+        if not train_on_full_dataset and self.model_data_config.validation_size:
+            validation_indices = indices[self.model_data_config.train_size:]
+
+        return train_indices, validation_indices       
+        
+    def get_dataloader(self, train_on_full_dataset: bool = False):
+        
+        train_indices, validation_indices = self._generate_train_validation_indices(
+            train_on_full_dataset=train_on_full_dataset
+        )
         validation_dataloader = None
         if self.model_data_config.shuffle_dataset:
             train_sampler = SubsetRandomSampler(train_indices)
@@ -135,8 +149,7 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
                 num_workers=mp.cpu_count() - 2, 
                 sampler=train_sampler
             )
-            if self.model_data_config.validation_size:
-                validation_indices = indices[self.model_data_config.train_size:]
+            if validation_indices is not None:
                 validation_sampler = SubsetRandomSampler(validation_indices)
                 validation_dataloader = DataLoader(
                     self.dataset, 
@@ -146,14 +159,14 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
                 )
 
         else:
-            train_data = [self.dataset[i] for i in validation_indices]
+            train_data = [self.dataset[i] for i in train_indices]
             train_dataloader = DataLoader(
                 train_data,
                 shuffle=False,
                 batch_size=self.model_training_config.batch_size, 
                 num_workers=mp.cpu_count() - 2, 
             )
-            if self.model_data_config.validation_size:
+            if validation_indices is not None:
                 validation_data = [self.dataset[i] for i in validation_indices]
                 validation_dataloader = DataLoader(
                     validation_data,
@@ -242,7 +255,7 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
 
 
     @abstractmethod
-    def initialize_optimization_parameters(self, lr) -> Tuple:
+    def initialize_optimization_parameters(self, lr, weights = None) -> Tuple:
         """
         
         """

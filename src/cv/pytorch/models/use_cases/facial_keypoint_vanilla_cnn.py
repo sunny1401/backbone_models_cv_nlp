@@ -13,13 +13,12 @@ class FacialKeypointVCNN(VanillaCNN):
         input_channel: int, 
         output_channels: List[int], 
         kernel_sizes: List[Tuple[int]],
-        
         linear_layers: int,
         dropout_addition_options: int = 1,
         cnn_batch_norm_flag: bool = False,
         linear_batch_norm_flag: bool = False, 
         dropout_threshold: Optional[Union[List[float], float]] = None,
-        pooling: Optional[Tuple[Tuple[str, int]]] = None
+        pooling: Tuple[Tuple[str, int]] = ("max", 2)
 
     ):
         """
@@ -39,7 +38,6 @@ class FacialKeypointVCNN(VanillaCNN):
            cnn_batch_norm_flag=cnn_batch_norm_flag,
            batch_norm_epsilon=batch_norm_epsilon,
            batch_norm_momentum=batch_norm_momentum,
-           pooling= pooling,
            linear_batch_norm_flag=linear_batch_norm_flag
         )
         if dropout_addition_options not in {0, 1, 2, 3, 4, 5, 6}:
@@ -100,11 +98,11 @@ class FacialKeypointVCNN(VanillaCNN):
                 input_channel = output_channels[i-1]
 
 
-            if self._pooling:
+            if isinstance(pooling, List):
 
-                pool_type, pool_size = self._pooling[i]
+                pool_type, pool_size = pooling[i]
             else:
-                pool_type, pool_size = "max", 2
+                pool_type, pool_size = pooling
             self.single_cnn_activation_step(
                 input_channels=input_channel, 
                 output_channels=output_channels[i], 
@@ -148,7 +146,7 @@ class FacialKeypointVCNN(VanillaCNN):
 
             if dropout_addition_options in {1, 4, 6}:
                 if isinstance(dropout_threshold, List):
-                    # TODO -> allowing for silen error
+                    # TODO -> allowing for silent error
                     # add dropout using idx
                     if len(dropout_threshold):
                         self.add_dropout(
