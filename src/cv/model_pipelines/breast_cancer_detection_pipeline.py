@@ -98,7 +98,7 @@ class BreastCancerTrainingPipeline(CNNTrainingPipeline):
         self.model.train()
         batch_training_loss: float = 0
 
-        for idx, data in enumerate(self._Strain_dataloader):
+        for idx, data in enumerate(self._train_dataloader):
             image = data["image"]
             label = data["label"]
             # convert variables to floats for regression loss
