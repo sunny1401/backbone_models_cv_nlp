@@ -71,5 +71,10 @@ class BreastCancerDataset(CustomDataset):
                 image=sample["image"][np.newaxis],
                 label=sample["label"]
             )
-        
+
+
+        if sample["image"].shape[0] == 1:
+            # todo - do this correctly
+            sample["image"] = np.reshape(sample["image"], (sample["image"].shape[1], sample["image"].shape[2], sample["image"].shape[0]))
+            
         return sample
