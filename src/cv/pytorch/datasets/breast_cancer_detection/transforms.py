@@ -112,28 +112,21 @@ class HistogramEqualization:
 
     def __init__(
         self, 
-        clip_limit: float = 2.0, 
-        tile_grid_size: Tuple[int, int]=(3,3)
+        number_bins=256
     ):
 
-        if not isinstance(tile_grid_size, Tuple):
-            raise ValueError(
-                "tile_grid_size should be of type Tuple"
-            )
-
-        self._tile_grid_size = tile_grid_size
-        self._clip_limit = clip_limit
-        self._histogram_equalizer = cv2.createCLAHE(
-            clipLimit=self._clip_limit, 
-            tileGridSize=self._tile_grid_size
-        )
+        self._number_bins = number_bins
+    # from http://www.janeriksolem.net/histogram-equalization-with-python-and.html
 
     def __call__(self, sample: Dict) -> Dict:
         
-        image_array = self._histogram_equalizer.apply(
-            sample["image"]
-        )
+        image = sample["image"]
+        # get image histogram
+        image_histogram, bins = np.histogram(image.flatten(), self._umber_bins, density=True)
+        cdf = image_histogram.cumsum() # cumulative distribution function
+        cdf = (self._number_bins-1) * cdf / cdf[-1] # normalize
 
-        image_array = (image_array /np.max(image_array)).astype("float32")
-        sample["image"] = image_array
-        return sample
+        # use linear interpolation of cdf to find new pixel values
+        image_equalized = np.interp(image.flatten(), bins[:-1], cdf)
+
+        sample["image"] = image_equalized

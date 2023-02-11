@@ -20,17 +20,19 @@ class BreastCancerLightningPipeline(CNNTrainingPLPipeline):
         model_initialization_params: Dict, 
         train_on_full_dataset: bool = False,
         loss_function_weights: Optional[np.array] = None, 
-        load_model_from_path: Optional[str] = None
+        load_model_from_path: Optional[str] = None,
+        test_dataset: Optional[Dataset] = None
 
     ) -> None:
         super().__init__(
-            model, 
-            dataset, 
-            model_training_config, 
-            model_data_config, 
-            model_initialization_params, 
-            loss_function_weights, 
-            load_model_from_path
+            model=model, 
+            dataset=dataset, 
+            model_training_config=model_training_config, 
+            model_data_config=model_data_config, 
+            model_initialization_params=model_initialization_params, 
+            loss_function_weights=loss_function_weights, 
+            load_model_from_path=load_model_from_path,
+            test_dataset=test_dataset
         )
         self._train_on_full_dataset = train_on_full_dataset
         self._train_indices, self._val_indices = self._generate_train_validation_indices()
@@ -48,7 +50,7 @@ class BreastCancerLightningPipeline(CNNTrainingPLPipeline):
         for key, value in other_required_keys.items():
             wraping_layers_map[key] = hyper_params.pop(key, value)
 
-        model = VanillaResnet(**hyper_params).to(self.model_training_config.device)
+        model = model(**hyper_params).to(self.model_training_config.device)
         model.wrap_up_network(**wraping_layers_map)
         return model
 
@@ -82,6 +84,12 @@ class BreastCancerLightningPipeline(CNNTrainingPLPipeline):
         else:
             train_indices = df.index.tolist()
             val_indices = None
+
+        if len(train_indices) > 1000:
+            train_indices = train_indices[: 1000]
+
+        if len(val_indices) > 500:
+            val_indices = val_indices[: 500]
 
         return train_indices, val_indices
 
