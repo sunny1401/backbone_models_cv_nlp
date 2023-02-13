@@ -32,6 +32,10 @@ class BreastCancerDataset(CustomDataset):
             # normalize across pixel array to make difference prominent
             image_array = np.max(image_array) - image_array
         
+        image_array = image_array - np.min(image_array)
+        image_array = image_array / np.max(image_array)
+        image_array = (image_array * 255).astype(np.uint8)
+        
         return image_array
     
     def __len__(self):
