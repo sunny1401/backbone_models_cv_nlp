@@ -72,14 +72,13 @@ class CNNTrainingPLPipeline(pl.LightningModule):
         pl.seed_everything(self.model_data_config.random_seed)
 
     @abstractmethod
-    def configure_optimizers(self, learning_rate: float):
+    def configure_optimizers(self):
 
         raise NotImplementedError
 
     @abstractmethod
     def _get_criterion(self, weights: Optional[np.array] = None):
-        criterion = nn.BCEWithLogitsLoss(weights)
-        return criterion
+        raise NotImplementedError
 
     @abstractmethod
     def _get_model_from_params(self, model: Callable, hyper_params: Dict):
@@ -114,12 +113,12 @@ class CNNTrainingPLPipeline(pl.LightningModule):
         pass
 
     def training_step(self, train_batch, batch_idx):
-      x, y = train_batch
-      logits = self.forward(x)
-      loss = self.loss_module(logits, y)
+        x, y = train_batch
+        logits = self.forward(x)
+        loss = self.loss_module(logits, y)
 
-      logs = {'train_loss': loss}
-      return {'loss': loss, 'log': logs}
+        logs = {'train_loss': loss}
+        return {'loss': loss, 'log': logs}
 
     def validation_step(self, val_batch, batch_idx):
         x, y = val_batch

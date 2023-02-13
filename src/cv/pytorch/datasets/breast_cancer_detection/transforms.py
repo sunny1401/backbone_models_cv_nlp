@@ -122,7 +122,7 @@ class HistogramEqualization:
         
         image = sample["image"]
         # get image histogram
-        image_histogram, bins = np.histogram(image.flatten(), self._umber_bins, density=True)
+        image_histogram, bins = np.histogram(image.flatten(), self._number_bins, density=True)
         cdf = image_histogram.cumsum() # cumulative distribution function
         cdf = (self._number_bins-1) * cdf / cdf[-1] # normalize
 

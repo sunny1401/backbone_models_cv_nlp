@@ -92,6 +92,12 @@ class BreastCancerTrainingPipeline(CNNTrainingPipeline):
             train_indices = df.index.tolist()
             val_indices = None
 
+        
+        if len(train_indices) > 750:
+            train_indices = train_indices[: 750]
+
+        if len(val_indices) > 300:
+            val_indices = val_indices[: 300]
         return train_indices, val_indices
 
     def _fit_model(self):
