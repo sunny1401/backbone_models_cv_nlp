@@ -1,6 +1,3 @@
-from src.cv.pytorch.models.resnet import VanillaResnet
-
-
 
 RESNET_MODEL_ARCHITECTURES = dict(
     resnet18 = [

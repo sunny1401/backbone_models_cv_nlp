@@ -2,6 +2,13 @@ import torch.nn as nn
 from typing import Optional, Dict, List, Union
 import torch.nn.functional as F
 from torch import nn
+from cv.pytorch.models.architecture_cutomisation import ConvLayer
+
+
+import torch.nn as nn
+from typing import Optional, Dict
+from torch import nn
+from cv.pytorch.models.architecture_cutomisation import ConvLayer, get_activation
 
 
 class ResnetBasicBlock(nn.Module):
@@ -14,8 +21,9 @@ class ResnetBasicBlock(nn.Module):
         out_channels: int, 
         backpropagation_relu_details: Optional[Dict] = None, 
         check_for_downsample: bool = False,
+        dropout_probability: float = 0.0,
         stride=1,
-        use_leaky_relu: bool = False
+        use_leaky_relu: bool = False,
     ) -> None:
 
         super(ResnetBasicBlock, self).__init__()
@@ -27,66 +35,53 @@ class ResnetBasicBlock(nn.Module):
         self._linear_batch_norm_flag=backpropagation_relu_details.get("linear_batch_norm_flag", True)
         self._use_leaky_relu = use_leaky_relu
 
-        if self._use_leaky_relu:
-            relu = nn.LeakyReLU(negative_slope=self._alpha_leaky_relu)
-        else:
-            relu = nn.ReLU()
-
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(
-                in_channels=in_channels,
-                out_channels=out_channels,
-                kernel_size=(3,3),
-                stride=stride, 
-                padding=1,
-            ),
-            nn.BatchNorm2d(
-                num_features=out_channels, 
-                eps=self._batch_norm_epsilon, 
-                momentum=self._batch_norm_momentum, 
-                affine=True, 
-                track_running_stats=True
-            ),
-            relu
+        self.conv1 = ConvLayer(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=(3, 3),
+            stride=stride,
+            padding=1,
+            use_leaky_relu=use_leaky_relu,
+            backpropagation_relu=backpropagation_relu_details.get("backpropagation_relu", False),
+            alpha_leaky_relu=self._alpha_leaky_relu,
+            batch_norm_epsilon=self._batch_norm_epsilon,
+            batch_norm_momentum=self._batch_norm_momentum,
+            dropout_probability=dropout_probability
         )
-        self.conv2 = nn.Sequential(
-            nn.Conv2d(
-                in_channels=out_channels,
-                out_channels=out_channels,
-                kernel_size=(3,3),
-                padding=1,
-            ),
-            nn.BatchNorm2d(
-                num_features=out_channels, 
-                eps=self._batch_norm_epsilon, 
-                momentum=self._batch_norm_momentum, 
-                affine=True, 
-                track_running_stats=True
-            )
+        self.conv2 = ConvLayer(
+            in_channels=out_channels,
+            out_channels=out_channels,
+            kernel_size=(3, 3),
+            padding=1,
+            use_leaky_relu=use_leaky_relu,
+            backpropagation_relu=False,
+            alpha_leaky_relu=self._alpha_leaky_relu,
+            batch_norm_epsilon=self._batch_norm_epsilon,
+            batch_norm_momentum=self._batch_norm_momentum,
+            dropout_probability=dropout_probability
         )
 
 
         self.downsample = None
 
-        if check_for_downsample and (stride != 1 or in_channels != self.expansion*out_channels):
-
+        if check_for_downsample and (stride != 1 or in_channels != self.expansion * out_channels):
             self.downsample = nn.Sequential(
-                nn.Conv2d(
+                ConvLayer(
                     in_channels=in_channels,
                     out_channels=out_channels,
-                    kernel_size=(1,1),
+                    kernel_size=(1, 1),
                     stride=stride,
-                ),
-                nn.BatchNorm2d(
-                    num_features=out_channels, 
-                    eps=self._batch_norm_epsilon, 
-                    momentum=self._batch_norm_momentum, 
-                    affine=True, 
-                    track_running_stats=True
+                    use_leaky_relu=False,
+                    backpropagation_relu=False,
+                    alpha_leaky_relu=self._alpha_leaky_relu,
+                    batch_norm_epsilon=self._batch_norm_epsilon,
+                    batch_norm_momentum=self._batch_norm_momentum,
+                    dropout_probability=dropout_probability
                 )
             )
-            
-        
+
+        self.activation = get_activation(use_leaky_relu=self._use_leaky_relu, alpha = self._alpha_leaky_relu)
+
     def forward(self, img):
         identity = img.clone()
 
@@ -95,127 +90,108 @@ class ResnetBasicBlock(nn.Module):
 
         if self.downsample:
             identity = self.downsample(identity)
+
         img += identity
-        if self._use_leaky_relu:
-            img = F.leaky_relu(img, negative_slope=self._alpha_leaky_relu)
-        else:
-            img = F.relu(img)
+
+        img = self.activation(img)
+
         return img
 
 
-class ResnetBottleneckBlock(nn.Module):
 
+class ResnetBottleneckBlock(nn.Module):
     expansion = 4
 
     def __init__(
-        self, 
-        in_channels: int, 
-        out_channels: int, 
-        backpropagation_relu_details: Optional[Dict] = None, 
+        self,
+        in_channels: int,
+        out_channels: int,
+        backpropagation_relu_details: Optional[Dict] = None,
         check_for_downsample: bool = False,
-        stride :int =1,
+        dropout_probability: float = 0.0,
+        stride: int = 1,
         use_leaky_relu: bool = False,
     ) -> None:
 
         super(ResnetBottleneckBlock, self).__init__()
 
         backpropagation_relu_details = dict() if not backpropagation_relu_details else backpropagation_relu_details
-        self._alpha_leaky_relu=backpropagation_relu_details.get("alpha_leaky_relu", 0.001), 
-        self._cnn_batch_norm_flag=backpropagation_relu_details.get("cnn_batch_norm_flag", True),
-        self._batch_norm_epsilon=backpropagation_relu_details.get("batch_norm_epsilon", 1e-05),
-        self._batch_norm_momentum=backpropagation_relu_details.get("batch_norm_momentum", 0.1),
-        self._linear_batch_norm_flag=backpropagation_relu_details.get("linear_batch_norm_flag", True)
+        self._alpha_leaky_relu = backpropagation_relu_details.get("alpha_leaky_relu", 0.001)
+        self._batch_norm_epsilon = backpropagation_relu_details.get("batch_norm_epsilon", 1e-05)
+        self._batch_norm_momentum = backpropagation_relu_details.get("batch_norm_momentum", 0.1)
         self._use_leaky_relu = use_leaky_relu
 
-        self._use_leaky_relu = use_leaky_relu
-
-        if self._use_leaky_relu:
-            relu = nn.LeakyReLU(negative_slope=self._alpha_leaky_relu)
-        else:
-            relu = nn.ReLU()
-
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(
-                in_channels=in_channels,
-                out_channels=out_channels,
-                kernel_size=(1,1),
-            ),
-            nn.BatchNorm2d(
-                num_features=out_channels, 
-                eps=self._batch_norm_epsilon, 
-                momentum=self._batch_norm_momentum, 
-                affine=True, 
-                track_running_stats=True
-            ),
-            relu
+        self.conv1 = ConvLayer(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=(1, 1),
+            use_leaky_relu=use_leaky_relu,
+            backpropagation_relu=backpropagation_relu_details.get("backpropagation_relu", False),
+            alpha_leaky_relu=self._alpha_leaky_relu,
+            batch_norm_epsilon=self._batch_norm_epsilon,
+            batch_norm_momentum=self._batch_norm_momentum,
+            dropout_probability=dropout_probability
         )
 
-        self.conv2 = nn.Sequential(
-            nn.Conv2d(
-                in_channels=in_channels,
-                out_channels=out_channels,
-                kernel_size=(3,3),
-                stride=stride,
-                padding=1
-            ),
-            nn.BatchNorm2d(
-                num_features=out_channels, 
-                eps=self._batch_norm_epsilon, 
-                momentum=self._batch_norm_momentum, 
-                affine=True, 
-                track_running_stats=True
-            ),
-            relu
+        self.conv2 = ConvLayer(
+            in_channels=out_channels,
+            out_channels=out_channels,
+            kernel_size=(3, 3),
+            stride=stride,
+            padding=1,
+            use_leaky_relu=use_leaky_relu,
+            backpropagation_relu=backpropagation_relu_details.get("backpropagation_relu", False),
+            alpha_leaky_relu=self._alpha_leaky_relu,
+            batch_norm_epsilon=self._batch_norm_epsilon,
+            batch_norm_momentum=self._batch_norm_momentum,
+            dropout_probability=dropout_probability
         )
 
-        self.conv3 = nn.Sequential(
-            nn.Conv2d(
-                in_channels=in_channels,
-                out_channels=out_channels,
-                kernel_size=(1,1),
-            ),
-            nn.BatchNorm2d(
-                num_features=out_channels, 
-                eps=self._batch_norm_epsilon, 
-                momentum=self._batch_norm_momentum, 
-                affine=True, 
-                track_running_stats=True
-            ),
-            relu
+        self.conv3 = ConvLayer(
+            in_channels=out_channels,
+            out_channels=out_channels * self.expansion,
+            kernel_size=(1, 1),
+            use_leaky_relu=False,
+            backpropagation_relu=False,
+            alpha_leaky_relu=self._alpha_leaky_relu,
+            batch_norm_epsilon=self._batch_norm_epsilon,
+            batch_norm_momentum=self._batch_norm_momentum,
+            dropout_probability=dropout_probability
         )
 
         self.downsample = None
 
-        if check_for_downsample and (stride != 1 or in_channels != self.expansion*out_channels):
+        if check_for_downsample and (stride != 1 or in_channels != self.expansion * out_channels):
             self.downsample = nn.Sequential(
-                nn.Conv2d(
+                ConvLayer(
                     in_channels=in_channels,
-                    out_channels=out_channels,
-                    kernel_size=(1,1),
+                    out_channels=out_channels * self.expansion,
+                    kernel_size=(1, 1),
                     stride=stride,
-                ),
-                nn.BatchNorm2d(
-                    num_features=out_channels, 
-                    eps=self._batch_norm_epsilon, 
-                    momentum=self._batch_norm_momentum, 
-                    affine=True, 
-                    track_running_stats=True
+                    use_leaky_relu=False,
+                    backpropagation_relu=False,
+                    alpha_leaky_relu=self._alpha_leaky_relu,
+                    batch_norm_epsilon=self._batch_norm_epsilon,
+                    batch_norm_momentum=self._batch_norm_momentum,
+                    dropout_probability=dropout_probability
                 )
             )
+        self.activation = get_activation(use_leaky_relu=self._use_leaky_relu, alpha = self._alpha_leaky_relu)
 
     def forward(self, img):
         identity = img.clone()
 
         img = self.conv1(img)
         img = self.conv2(img)
-        
+        img = self.conv3(img)
+
         if self.downsample:
             identity = self.downsample(identity)
+
         img += identity
-        if self._use_leaky_relu:
-            img = F.leaky_relu(img, negative_slope=self._alpha_leaky_relu)
-        else:
-            img = F.relu(img)
+
+        img = self.activation(img)
+
         return img
 
 
@@ -233,7 +209,7 @@ class VanillaResnet(nn.Module):
         cnn_batch_norm_flag: bool = True,
         linear_batch_norm_flag: bool = True,
         use_leaky_relu_in_resnet: bool = False,
-        dropout_threshold: Optional[Union[float, List[float]]] = 0.01,
+        dropout_probability: Optional[Union[float, List[float]]] = 0.01,
         num_linear_layers: int = 1, 
         output_channels: Optional[List[int]] = None,
         add_dropout_to_linear_layers: bool = True,
@@ -241,7 +217,6 @@ class VanillaResnet(nn.Module):
 
         super(VanillaResnet, self).__init__()
 
-        # TODO - add dropout support within resnet
         self._backpropagation_relu_dict = dict(
             alpha_leaky_relu=alpha_leaky_relu,
             batch_norm_epsilon=batch_norm_epsilon,
@@ -254,30 +229,29 @@ class VanillaResnet(nn.Module):
         self._bottleneck_block_count = 1
         self._required_input_channels = 64
 
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(
-                in_channels=in_channels,
-                out_channels=self._required_input_channels,
-                kernel_size=(7,7),
-                stride=2,
-                padding=3,
-            ),
-            nn.BatchNorm2d(
-                num_features=self._required_input_channels,
-                eps=batch_norm_epsilon, 
-                momentum=batch_norm_momentum, 
-                affine=True, 
-                track_running_stats=True
-            ),
-            nn.MaxPool2d(
-                kernel_size=(3,3),
-                stride=2,
-                padding=1
-            )
-
+        self.conv1 = ConvLayer(
+            in_channels=in_channels,
+            out_channels=self._required_input_channels,
+            kernel_size=(7,7),
+            stride=2,
+            padding=3,
+            batch_norm_epsilon=batch_norm_epsilon,
+            batch_norm_momentum=batch_norm_momentum,
+            use_leaky_relu=use_leaky_relu_in_resnet,
+            alpha_leaky_relu=alpha_leaky_relu,
         )
+        
+        self.pool = nn.MaxPool2d(
+            kernel_size=(3,3),
+            stride=2,
+            padding=1
+        )
+
         self._num_classes = num_classes
-        self._resnet_block = []
+        self.resnet_block = nn.ModuleList()
+        cnn_dropout_probability = (
+            dropout_probability[0] if isinstance(dropout_probability, List) else dropout_probability
+        )
         for (block_type, stride, output, num_layers) in resnet_stride_output_combination:
 
             if block_type == "BasicBlock":
@@ -286,7 +260,8 @@ class VanillaResnet(nn.Module):
                     out_channels=output, 
                     stride=stride,
                     use_leaky_relu=use_leaky_relu_in_resnet,
-                    num_layers = num_layers
+                    num_layers=num_layers,
+                    dropout_probability=cnn_dropout_probability
                 )  
 
             elif block_type == "BottleneckBlock":
@@ -295,7 +270,8 @@ class VanillaResnet(nn.Module):
                     out_channels=output,
                     stride=stride,
                     use_leaky_relu=use_leaky_relu_in_resnet,
-                    num_layers = num_layers
+                    num_layers=num_layers,
+                    dropout_probability=cnn_dropout_probability
                 )
 
         self.avg_pool = nn.AdaptiveAvgPool2d((1,1))
@@ -310,18 +286,19 @@ class VanillaResnet(nn.Module):
                     "For other layers please provide relevant outputs"
                 )
         if add_dropout_to_linear_layers:
-            if isinstance(dropout_threshold, List):
-                if not len(dropout_threshold) == num_linear_layers - 1:
+            if isinstance(dropout_probability, List):
+                if not len(dropout_probability) == num_linear_layers - 1:
 
                     raise ValueError("Please provide dropout for all layers save last")
             elif num_linear_layers > 1:
-                dropout_threshold = [dropout_threshold] * (num_linear_layers - 1)
+                dropout_probability = [dropout_probability] * (num_linear_layers - 1)
             else:
-                dropout_threshold = [dropout_threshold]
+                dropout_probability = [dropout_probability]
 
+        self.linear_layers = nn.ModuleList()
         for i in range(num_linear_layers - 1):
 
-            network_layers = []
+            network_layers = list()
             network_layers.append(
                 nn.Linear(
                     in_features=self._required_input_channels, 
@@ -341,15 +318,16 @@ class VanillaResnet(nn.Module):
             network_layers.append(nn.ReLU())
             if add_dropout_to_linear_layers:
                 network_layers.append(
-                    nn.Dropout(dropout_threshold[i])
+                    nn.Dropout(dropout_probability[i])
                 )
 
             linear = nn.Sequential(*network_layers)
             self._required_input_channels = output_channels[i]
 
             setattr(self, f"linear_layer_{i}", linear)
-            self._resnet_block.append(("linear", linear))
-        
+            self.linear_layers.append(linear)
+
+        activation = get_activation(use_leaky_relu=self._use_leaky_relu, alpha = self._alpha_leaky_relu)
         final_layers = [
             nn.Linear(
                 in_features=self._required_input_channels, 
@@ -363,18 +341,17 @@ class VanillaResnet(nn.Module):
                 affine=True, 
                 track_running_stats=True
             ),
-            nn.ReLU()
+            activation
         ]
         if add_dropout_to_linear_layers:
-            final_layers.append(
-                nn.Dropout(dropout_threshold[-1])
-            )
+            final_layers.append(nn.Dropout(dropout_probability[-1]))
 
-        self.final_layer = nn.Sequential(*final_layers)
+        self.final_layers = nn.Sequential(**final_layers)
 
    
     def add_basic_block(
         self, 
+        dropout_probability: float,
         out_channels: int, 
         num_layers: int, 
         stride: int, 
@@ -392,15 +369,17 @@ class VanillaResnet(nn.Module):
                 out_channels=out_channels, 
                 stride=stride,
                 use_leaky_relu=use_leaky_relu,
-                backpropagation_relu_details=self._backpropagation_relu_dict
+                backpropagation_relu_details=self._backpropagation_relu_dict,
+                dropout_probability=dropout_probability,
             ).to(self._device)
             setattr(self, f"BasicBlock_conv{self._basic_block_count}x_{i+1}", basic_block)
-            self._resnet_block.append(("BBlock", basic_block))
+            self.resnet_block.append(basic_block)
             in_channels = out_channels * ResnetBasicBlock.expansion
         self._required_input_channels = out_channels
 
     def add_bottleneck_block(
         self, 
+        dropout_probability: float,
         out_channels: int, 
         num_layers: int, 
         stride: int, 
@@ -417,29 +396,24 @@ class VanillaResnet(nn.Module):
                 out_channels=out_channels, 
                 stride=stride,
                 use_leaky_relu=use_leaky_relu,
-                backpropagation_relu_details=self._backpropagation_relu_dict
+                backpropagation_relu_details=self._backpropagation_relu_dict,
+                dropout_probability=dropout_probability
             ).to(self._device)
             setattr(self, f"BottleneckBlock_conv{self._bottleneck_block_count}x_{i+1}", bottleneck_block)
-            self._resnet_block.append(("BBlock", bottleneck_block))
+            self.resnet_block.append(bottleneck_block)
             in_channels = out_channels * ResnetBasicBlock.expansion
 
         self._required_input_channels = out_channels
     
     def forward(self, x):
         x = self.conv1(x)
-        first_linear_occurence = False
-        for layer_name, layer in self._resnet_block:
-            if not first_linear_occurence and layer_name == "linear":
-                x = self.avg_pool(x)
-                x = x.view(x.size(0), -1)
-                first_linear_occurence = True
-
+        
+        for layer in self.resnet_block:
+            x = layer(x)
+        x = self.avg_pool(x)
+        x = x.view(x.size(0), -1)
+        for layer in self.linear_layers:
             x = layer(x)
 
-        if not first_linear_occurence:
-            x = self.avg_pool(x)
-            x = x.view(x.size(0), -1)
-            first_linear_occurence = True
-
-        x = self.final_layer(x)
+        x  = self.final_layers(x)
         return x

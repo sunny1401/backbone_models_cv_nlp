@@ -1,0 +1,8 @@
+__pycache__/
+*/__pycache__/
+*.ipynb
+# dont add notebooks by default
+src/cv/model_pipelines/notebooks/*
+src/cv/model_pipelines/notebooks/.ipynb_checkpoints/
+data/
+*.egg-info/

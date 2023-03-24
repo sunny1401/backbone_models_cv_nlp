@@ -140,6 +140,10 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
         train_indices, validation_indices = self._generate_train_validation_indices(
             train_on_full_dataset=train_on_full_dataset
         )
+        if self.model_training_config.device == "cuda":
+            pin_memory=True
+        else:
+            pin_memory = False
         validation_dataloader = None
         if self.model_data_config.shuffle_dataset:
             train_sampler = SubsetRandomSampler(train_indices)
@@ -147,7 +151,8 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
                 self.dataset, 
                 batch_size=self.model_training_config.batch_size, 
                 num_workers=mp.cpu_count() - 2, 
-                sampler=train_sampler
+                sampler=train_sampler,
+                pin_memory=pin_memory
             )
             if validation_indices is not None:
                 validation_sampler = SubsetRandomSampler(validation_indices)
@@ -155,7 +160,8 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
                     self.dataset, 
                     batch_size=self.model_training_config.batch_size, 
                     num_workers=mp.cpu_count() - 2, 
-                    sampler=validation_sampler
+                    sampler=validation_sampler,
+                    pin_memory=pin_memory
                 )
 
         else:
@@ -165,6 +171,7 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
                 shuffle=False,
                 batch_size=self.model_training_config.batch_size, 
                 num_workers=mp.cpu_count() - 2, 
+                pin_memory=pin_memory
             )
             if validation_indices is not None:
                 validation_data = [self.dataset[i] for i in validation_indices]
@@ -173,6 +180,7 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
                     shuffle=False,
                     batch_size=self.model_training_config.batch_size, 
                     num_workers=mp.cpu_count() - 2, 
+                    pin_memory=pin_memory
                 )
         
         return train_dataloader, validation_dataloader
