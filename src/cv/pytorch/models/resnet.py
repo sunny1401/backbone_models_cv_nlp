@@ -27,10 +27,10 @@ class ResnetBasicBlock(nn.Module):
 
         super(ResnetBasicBlock, self).__init__()
         backpropagation_relu_details = dict() if not backpropagation_relu_details else backpropagation_relu_details
-        self._alpha_leaky_relu=backpropagation_relu_details.get("alpha_leaky_relu", 0.001), 
-        self._cnn_batch_norm_flag=backpropagation_relu_details.get("cnn_batch_norm_flag", True),
-        self._batch_norm_epsilon=backpropagation_relu_details.get("batch_norm_epsilon", 1e-05),
-        self._batch_norm_momentum=backpropagation_relu_details.get("batch_norm_momentum", 0.1),
+        self._alpha_leaky_relu=backpropagation_relu_details.get("alpha_leaky_relu", 0.001)
+        self._cnn_batch_norm_flag=backpropagation_relu_details.get("cnn_batch_norm_flag", True)
+        self._batch_norm_epsilon=backpropagation_relu_details.get("batch_norm_epsilon", 1e-05)
+        self._batch_norm_momentum=backpropagation_relu_details.get("batch_norm_momentum", 0.1)
         self._linear_batch_norm_flag=backpropagation_relu_details.get("linear_batch_norm_flag", True)
         self._use_leaky_relu = use_leaky_relu
 
