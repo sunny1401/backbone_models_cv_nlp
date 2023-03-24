@@ -2,13 +2,12 @@ import torch.nn as nn
 from typing import Optional, Dict, List, Union
 import torch.nn.functional as F
 from torch import nn
-from cv.pytorch.models.architecture_cutomisation import ConvLayer
 
 
 import torch.nn as nn
 from typing import Optional, Dict
 from torch import nn
-from cv.pytorch.models.architecture_cutomisation import ConvLayer, get_activation
+from src.cv.pytorch.models.architecture_cutomisation import ConvLayer, get_activation
 
 
 class ResnetBasicBlock(nn.Module):
@@ -327,7 +326,7 @@ class VanillaResnet(nn.Module):
             setattr(self, f"linear_layer_{i}", linear)
             self.linear_layers.append(linear)
 
-        activation = get_activation(use_leaky_relu=self._use_leaky_relu, alpha = self._alpha_leaky_relu)
+        activation = get_activation(use_leaky_relu=False)
         final_layers = [
             nn.Linear(
                 in_features=self._required_input_channels, 
@@ -346,7 +345,7 @@ class VanillaResnet(nn.Module):
         if add_dropout_to_linear_layers:
             final_layers.append(nn.Dropout(dropout_probability[-1]))
 
-        self.final_layers = nn.Sequential(**final_layers)
+        self.final_layers = nn.Sequential(*final_layers)
 
    
     def add_basic_block(

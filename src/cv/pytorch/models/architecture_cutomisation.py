@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torch
 
 
-def get_activation(use_leaky_relu: bool, alpha: float):
+def get_activation(use_leaky_relu: bool, alpha: float = 0.01):
     if use_leaky_relu:
         return nn.LeakyReLU(negative_slope=alpha)
     else:
