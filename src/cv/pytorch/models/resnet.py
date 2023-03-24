@@ -306,7 +306,7 @@ class VanillaResnet(nn.Module):
                 )
             )
             network_layers.append(
-                nn.BatchNorm2d(
+                nn.BatchNorm1d(
                     num_features=output_channels[i], 
                     eps=batch_norm_epsilon, 
                     momentum=batch_norm_momentum, 
@@ -333,7 +333,7 @@ class VanillaResnet(nn.Module):
                 out_features=self._num_classes, 
                 bias=True
             ),
-            nn.BatchNorm2d(
+            nn.BatchNorm1d(
                 num_features=self._num_classes, 
                 eps=batch_norm_epsilon, 
                 momentum=batch_norm_momentum, 
