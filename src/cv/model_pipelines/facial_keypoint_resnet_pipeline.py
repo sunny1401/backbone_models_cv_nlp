@@ -1,5 +1,5 @@
 from src.cv.model_pipelines.facial_keypoint_cnn_pipeline import FacialCNNTrainingPipeline
-from src.cv.pytorch.models.resnet import VanillaResnet
+from src.cv.pytorch.models.skip_networks.resnet import VanillaResnet
 from typing import Dict, Optional
 import numpy as np
 from torch.utils.data import Dataset
