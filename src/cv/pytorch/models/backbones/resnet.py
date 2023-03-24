@@ -23,7 +23,6 @@ class ResnetBasicBlock(nn.Module):
         dropout_probability: float = 0.0,
         stride=1,
         use_leaky_relu: bool = False,
-        yolo_compatible: bool = False
     ) -> None:
 
         super(ResnetBasicBlock, self).__init__()
@@ -31,8 +30,8 @@ class ResnetBasicBlock(nn.Module):
         alpha_leaky_relu=backpropagation_relu_details.get("alpha_leaky_relu", 0.001)
         batch_norm_epsilon=backpropagation_relu_details.get("batch_norm_epsilon", 1e-05)
         batch_norm_momentum=backpropagation_relu_details.get("batch_norm_momentum", 0.1)
-        use_leaky_relu = use_leaky_relu if not yolo_compatible else True
-        dropout_probability = dropout_probability if not yolo_compatible else 0.0
+        use_leaky_relu = use_leaky_relu
+        dropout_probability = dropout_probability
 
         self.conv1 = ConvLayer(
             in_channels=in_channels,
@@ -41,7 +40,6 @@ class ResnetBasicBlock(nn.Module):
             stride=stride,
             padding=1,
             use_leaky_relu=use_leaky_relu,
-            backpropagation_relu=backpropagation_relu_details.get("backpropagation_relu", False),
             alpha_leaky_relu=alpha_leaky_relu,
             batch_norm_epsilon=batch_norm_epsilon,
             batch_norm_momentum=batch_norm_momentum,
@@ -53,12 +51,11 @@ class ResnetBasicBlock(nn.Module):
             kernel_size=(3, 3),
             padding=1,
             use_leaky_relu=use_leaky_relu,
-            backpropagation_relu=False,
+            no_activation_added=True,
             alpha_leaky_relu=alpha_leaky_relu,
             batch_norm_epsilon=batch_norm_epsilon,
             batch_norm_momentum=batch_norm_momentum,
             dropout_probability=dropout_probability
-            no_activation_added=True
         )
 
 
@@ -72,11 +69,10 @@ class ResnetBasicBlock(nn.Module):
                     kernel_size=(1, 1),
                     stride=stride,
                     use_leaky_relu=False,
-                    backpropagation_relu=False,
                     alpha_leaky_relu=alpha_leaky_relu,
                     batch_norm_epsilon=batch_norm_epsilon,
                     batch_norm_momentum=batch_norm_momentum,
-                    dropout_probability=dropout_probability
+                    dropout_probability=dropout_probability,
                     no_activation_added=True
                 )
             )
