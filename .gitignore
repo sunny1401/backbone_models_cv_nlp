@@ -6,3 +6,4 @@ src/cv/model_pipelines/notebooks/*
 src/cv/model_pipelines/notebooks/.ipynb_checkpoints/
 data/
 *.egg-info/
+notebooks/

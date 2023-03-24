@@ -27,12 +27,11 @@ class ResnetBasicBlock(nn.Module):
 
         super(ResnetBasicBlock, self).__init__()
         backpropagation_relu_details = dict() if not backpropagation_relu_details else backpropagation_relu_details
-        self._alpha_leaky_relu=backpropagation_relu_details.get("alpha_leaky_relu", 0.001)
-        self._cnn_batch_norm_flag=backpropagation_relu_details.get("cnn_batch_norm_flag", True)
-        self._batch_norm_epsilon=backpropagation_relu_details.get("batch_norm_epsilon", 1e-05)
-        self._batch_norm_momentum=backpropagation_relu_details.get("batch_norm_momentum", 0.1)
-        self._linear_batch_norm_flag=backpropagation_relu_details.get("linear_batch_norm_flag", True)
-        self._use_leaky_relu = use_leaky_relu
+        alpha_leaky_relu=backpropagation_relu_details.get("alpha_leaky_relu", 0.001)
+        batch_norm_epsilon=backpropagation_relu_details.get("batch_norm_epsilon", 1e-05)
+        batch_norm_momentum=backpropagation_relu_details.get("batch_norm_momentum", 0.1)
+        use_leaky_relu = use_leaky_relu
+        dropout_probability = dropout_probability
 
         self.conv1 = ConvLayer(
             in_channels=in_channels,
@@ -41,10 +40,9 @@ class ResnetBasicBlock(nn.Module):
             stride=stride,
             padding=1,
             use_leaky_relu=use_leaky_relu,
-            backpropagation_relu=backpropagation_relu_details.get("backpropagation_relu", False),
-            alpha_leaky_relu=self._alpha_leaky_relu,
-            batch_norm_epsilon=self._batch_norm_epsilon,
-            batch_norm_momentum=self._batch_norm_momentum,
+            alpha_leaky_relu=alpha_leaky_relu,
+            batch_norm_epsilon=batch_norm_epsilon,
+            batch_norm_momentum=batch_norm_momentum,
             dropout_probability=dropout_probability
         )
         self.conv2 = ConvLayer(
@@ -53,10 +51,10 @@ class ResnetBasicBlock(nn.Module):
             kernel_size=(3, 3),
             padding=1,
             use_leaky_relu=use_leaky_relu,
-            backpropagation_relu=False,
-            alpha_leaky_relu=self._alpha_leaky_relu,
-            batch_norm_epsilon=self._batch_norm_epsilon,
-            batch_norm_momentum=self._batch_norm_momentum,
+            no_activation_added=True,
+            alpha_leaky_relu=alpha_leaky_relu,
+            batch_norm_epsilon=batch_norm_epsilon,
+            batch_norm_momentum=batch_norm_momentum,
             dropout_probability=dropout_probability
         )
 
@@ -71,15 +69,15 @@ class ResnetBasicBlock(nn.Module):
                     kernel_size=(1, 1),
                     stride=stride,
                     use_leaky_relu=False,
-                    backpropagation_relu=False,
-                    alpha_leaky_relu=self._alpha_leaky_relu,
-                    batch_norm_epsilon=self._batch_norm_epsilon,
-                    batch_norm_momentum=self._batch_norm_momentum,
-                    dropout_probability=dropout_probability
+                    alpha_leaky_relu=alpha_leaky_relu,
+                    batch_norm_epsilon=batch_norm_epsilon,
+                    batch_norm_momentum=batch_norm_momentum,
+                    dropout_probability=dropout_probability,
+                    no_activation_added=True
                 )
             )
 
-        self.activation = get_activation(use_leaky_relu=self._use_leaky_relu, alpha = self._alpha_leaky_relu)
+        self.activation = get_activation(use_leaky_relu=use_leaky_relu, alpha = alpha_leaky_relu)
 
     def forward(self, img):
         identity = img.clone()
@@ -125,7 +123,6 @@ class ResnetBottleneckBlock(nn.Module):
             out_channels=out_channels,
             kernel_size=(1, 1),
             use_leaky_relu=use_leaky_relu,
-            backpropagation_relu=backpropagation_relu_details.get("backpropagation_relu", False),
             alpha_leaky_relu=self._alpha_leaky_relu,
             batch_norm_epsilon=self._batch_norm_epsilon,
             batch_norm_momentum=self._batch_norm_momentum,
@@ -139,7 +136,6 @@ class ResnetBottleneckBlock(nn.Module):
             stride=stride,
             padding=1,
             use_leaky_relu=use_leaky_relu,
-            backpropagation_relu=backpropagation_relu_details.get("backpropagation_relu", False),
             alpha_leaky_relu=self._alpha_leaky_relu,
             batch_norm_epsilon=self._batch_norm_epsilon,
             batch_norm_momentum=self._batch_norm_momentum,
@@ -151,7 +147,7 @@ class ResnetBottleneckBlock(nn.Module):
             out_channels=out_channels * self.expansion,
             kernel_size=(1, 1),
             use_leaky_relu=False,
-            backpropagation_relu=False,
+            no_activation_added=True,
             alpha_leaky_relu=self._alpha_leaky_relu,
             batch_norm_epsilon=self._batch_norm_epsilon,
             batch_norm_momentum=self._batch_norm_momentum,
@@ -168,7 +164,7 @@ class ResnetBottleneckBlock(nn.Module):
                     kernel_size=(1, 1),
                     stride=stride,
                     use_leaky_relu=False,
-                    backpropagation_relu=False,
+                    no_activation_added=True,
                     alpha_leaky_relu=self._alpha_leaky_relu,
                     batch_norm_epsilon=self._batch_norm_epsilon,
                     batch_norm_momentum=self._batch_norm_momentum,

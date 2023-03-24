@@ -21,44 +21,41 @@ class ConvLayer(nn.Module):
         padding: Union[int, tuple] = 0,
         use_leaky_relu: bool = False,
         alpha_leaky_relu: float = 0.001,
-        backpropagation_relu: bool = False,
         batch_norm_epsilon: float = 1e-05,
         batch_norm_momentum: float = 0.1,
         dropout_probability: float = 0.0,
+        no_activation_added: bool = False
     ) -> None:
         super(ConvLayer, self).__init__()
 
         self._use_leaky_relu = use_leaky_relu
-        self._backpropagation_relu = backpropagation_relu
         self._alpha_leaky_relu = alpha_leaky_relu
 
-        self.conv = nn.Conv2d(
-            in_channels=in_channels,
-            out_channels=out_channels,
-            kernel_size=kernel_size,
-            stride=stride,
-            padding=padding,
-        )
-
-        self.batch_norm = nn.BatchNorm2d(
-            num_features=out_channels,
-            eps=batch_norm_epsilon,
-            momentum=batch_norm_momentum,
-            affine=True,
-            track_running_stats=True,
-        )
-
-        self.activation = get_activation(use_leaky_relu=self._use_leaky_relu, alpha = self._alpha_leaky_relu)
+        layers = [
+            nn.Conv2d(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+            ),
+            nn.BatchNorm2d(
+                num_features=out_channels,
+                eps=batch_norm_epsilon,
+                momentum=batch_norm_momentum,
+                affine=True,
+                track_running_stats=True,
+            ),
+        ]
+        if not no_activation_added:
+            layers.append(get_activation(
+                use_leaky_relu=self._use_leaky_relu, alpha = self._alpha_leaky_relu))
     
-        self.dropout = nn.Dropout(dropout_probability)
-
+        layers.append(nn.Dropout(dropout_probability))
+        self.conv = nn.Sequential(*layers)
+            
     def forward(self, x):
         x = self.conv(x)
-        x = self.batch_norm(x)
-        x = self.activation(x)
-
-        if self._backpropagation_relu:
-            x = self.activation(x)
 
         return x
     
