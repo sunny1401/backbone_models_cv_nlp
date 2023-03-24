@@ -127,6 +127,7 @@ class HistogramEqualization:
         cdf = (self._number_bins-1) * cdf / cdf[-1] # normalize
 
         # use linear interpolation of cdf to find new pixel values
-        image_equalized = np.interp(image.flatten(), bins[:-1], cdf)
+        image_equalized = np.interp(image.flatten(), bins[:-1], cdf).reshape(image.shape)
 
         sample["image"] = image_equalized
+        return sample
