@@ -322,8 +322,6 @@ class VanillaResnet(nn.Module):
 
             linear = nn.Sequential(*network_layers)
             self._required_input_channels = output_channels[i]
-
-            setattr(self, f"linear_layer_{i}", linear)
             self.linear_layers.append(linear)
 
         activation = get_activation(use_leaky_relu=False)
@@ -371,7 +369,7 @@ class VanillaResnet(nn.Module):
                 backpropagation_relu_details=self._backpropagation_relu_dict,
                 dropout_probability=dropout_probability,
             ).to(self._device)
-            setattr(self, f"BasicBlock_conv{self._basic_block_count}x_{i+1}", basic_block)
+            # setattr(self, f"BasicBlock_conv{self._basic_block_count}x_{i+1}", basic_block)
             self.resnet_block.append(basic_block)
             in_channels = out_channels * ResnetBasicBlock.expansion
         self._required_input_channels = out_channels
@@ -398,7 +396,7 @@ class VanillaResnet(nn.Module):
                 backpropagation_relu_details=self._backpropagation_relu_dict,
                 dropout_probability=dropout_probability
             ).to(self._device)
-            setattr(self, f"BottleneckBlock_conv{self._bottleneck_block_count}x_{i+1}", bottleneck_block)
+            # setattr(self, f"BottleneckBlock_conv{self._bottleneck_block_count}x_{i+1}", bottleneck_block)
             self.resnet_block.append(bottleneck_block)
             in_channels = out_channels * ResnetBasicBlock.expansion
 
