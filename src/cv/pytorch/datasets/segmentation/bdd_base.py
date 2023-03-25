@@ -26,7 +26,7 @@ class BDDBaseDataset(Dataset):
         raise NotImplementedError
 
     @abstractmethod
-    def _get_image_and_label(self, idx) -> Tuple(str, Union[np.array, str]):
+    def _get_image_and_label(self, idx) -> Tuple[str, Union[np.array, str]]:
         raise NotImplementedError
     
     @abstractmethod
