@@ -47,3 +47,6 @@ class WeatherDataset(Dataset):
             image = self.transform(image)
 
         return image, label
+    
+    def file_paths(self, idx):
+        return self._images[idx]

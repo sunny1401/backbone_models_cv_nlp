@@ -41,3 +41,6 @@ class BDDWeatherDataset(BDDBaseDataset):
 
     def _get_length(self) -> int:
         return self._labels.shape[0]
+    
+    def file_paths(self, idx):
+        return self._images[idx]
