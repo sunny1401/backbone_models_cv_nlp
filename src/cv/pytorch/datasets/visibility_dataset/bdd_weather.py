@@ -1,4 +1,5 @@
 import os
+import json
 from typing import Union
 
 import pandas as pd
@@ -44,3 +45,25 @@ class BDDWeatherDataset(BDDBaseDataset):
     
     def file_paths(self, idx):
         return self._images[idx]
+    
+
+def preprocess_json_to_csv_weather_labels(json_file, output_path):
+
+    if not os.path.exists(json_file):
+        raise FileNotFoundError(
+            f"Json file {json_file} not found"
+        )
+    with open(json_file, "rb") as f:
+        data_dict = json.load(f)
+
+    df = pd.DataFrame(data_dict)
+    # we can ignore object detection labels here
+    df = pd.concat(
+        [
+            df[["name", "timestamp"]],  
+            # attributes is a dictionary
+            pd.DataFrame(df["attributes"].tolist())
+        ], axis=1)
+    
+    os.makedirs(os.path.split(output_path)[0], exist_ok=True)
+    df.to_csv(output_path, index=False)
