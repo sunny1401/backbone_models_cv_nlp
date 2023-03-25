@@ -28,7 +28,7 @@ class WeatherDataset(Dataset):
 
         self._images = []
 
-        for dirpath, _, filenames in os.walk(self._root_dir):
+        for dirpath, _, filenames in os.walk(root_dir):
             for filename in filenames:
                 if filename.endswith('.jpg'):
                     self._images.append(os.path.join(dirpath, filename))
