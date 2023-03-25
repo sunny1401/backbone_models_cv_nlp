@@ -4,7 +4,7 @@ from typing import Union
 import pandas as pd
 from PIL import Image
 import torch
-from src.dataset.bdd_base import BDDBaseDataset
+from src.cv.pytorch.datasets.segmentation.bdd_base import BDDBaseDataset
 
 
 class BDDWeatherDataset(BDDBaseDataset):
