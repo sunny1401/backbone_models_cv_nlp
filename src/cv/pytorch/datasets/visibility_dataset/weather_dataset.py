@@ -1,4 +1,5 @@
 import os
+import glob
 from typing import Tuple, Callable, Optional
 
 import numpy as np
@@ -26,12 +27,9 @@ class WeatherDataset(Dataset):
 
         self._label = self.WEATHER_SET[weather_type]
 
-        self._images = []
+        self._images = glob.glob(f"{root_dir}/*.jpg")
 
-        for dirpath, _, filenames in os.walk(root_dir):
-            for filename in filenames:
-                if filename.endswith('.jpg'):
-                    self._images.append(os.path.join(dirpath, filename))
+        
         
     def __len__(self) -> int:
 
@@ -40,7 +38,7 @@ class WeatherDataset(Dataset):
     def __getitem__(self, index) -> Tuple[np.array, int]:
 
         image_path = self._images[index]
-        image =  Image.open(image_path)
+        image =  Image.open(image_path).convert("RGB")
         label = torch.tensor(self._label, dtype=torch.float32)
 
         if self.transform:
