@@ -3,6 +3,7 @@ from pynvml import (
 )
 from numba import cuda
 import torch
+import gc
 
 
 def print_gpu_utilization():
@@ -22,5 +23,10 @@ def free_gpu_cache(hard=False, device_id=None):
         cuda.select_device(device_id)
         cuda.close()
         cuda.select_device(0)
+        # raise UserWarning(
+        #     "The context is now closed. "
+        #     "Pytorch manages CUDA initialization internally - "
+        #     "please initialize the device to use again")
+        _ = torch.cuda.FloatTensor(1)
     print("GPU usage post cleaning", print_gpu_utilization())
 
