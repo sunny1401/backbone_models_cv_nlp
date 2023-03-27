@@ -29,9 +29,9 @@ class BDDWeatherDataset(BDDBaseDataset):
         img_name = os.path.join(
             self._root_dir, self._split, self._images[idx])
         image = Image.open(img_name)
-        # label = self._labels[idx]
-        # label = torch.tensor(label, dtype=torch.float32)
-        return image
+        label = self._labels[idx]
+        
+        return image, label
 
     
     def _get_labels(self):
