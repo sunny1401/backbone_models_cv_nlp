@@ -26,7 +26,8 @@ class BDDWeatherDataset(BDDBaseDataset):
         return pd.read_csv(self.__csv_file).iloc[:, 0].tolist()
  
     def _get_image_and_label(self, idx):
-        img_name = os.path.join(self._root_dir, self._images[idx])
+        img_name = os.path.join(
+            self._root_dir, self._split, self._images[idx])
         image = Image.open(img_name)
         label = self._labels[idx]
         label = torch.tensor(label, dtype=torch.float32)
