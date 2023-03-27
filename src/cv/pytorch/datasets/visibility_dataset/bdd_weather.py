@@ -42,7 +42,7 @@ class BDDWeatherDataset(BDDBaseDataset):
         return df[self.__weather_column].tolist()
 
     def _get_length(self) -> int:
-        return self._labels.shape[0]
+        return len(self._labels)
     
     def file_paths(self, idx):
         return self._images[idx]
