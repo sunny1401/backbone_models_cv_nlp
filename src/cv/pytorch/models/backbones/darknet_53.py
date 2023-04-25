@@ -1,5 +1,4 @@
-from src.cv.pytorch.models.architecture_cutomisation import ConvLayer
-
+from src.cv.pytorch.models.architecture_customisation import BatchConvLayer
 from torch import nn
 
 
@@ -9,14 +8,14 @@ class DarknetResidualBlock(nn.Module):
         super(DarknetResidualBlock, self).__init__()
 
         self.residual = nn.Sequential(
-            ConvLayer(
+            BatchConvLayer(
                 in_channels=channels, 
                 out_channels=channels//2, 
                 kernel_size=1, 
                 stride=1, 
                 use_leaky_relu=True, 
             ),
-            ConvLayer(
+            BatchConvLayer(
                 in_channels=channels//2, 
                 out_channels=channels, 
                 kernel_size=3, 
@@ -44,7 +43,7 @@ class Darknet53(nn.Module):
 
         self.layers = [
 
-            ConvLayer(
+            BatchConvLayer(
                 in_channels=3, 
                 out_channels=32, 
                 kernel_size=3, 
@@ -56,7 +55,7 @@ class Darknet53(nn.Module):
                 batch_norm_momentum=batch_norm_momentum,
                 dropout_probability=dropout_probability
             ),
-            ConvLayer(
+            BatchConvLayer(
                 in_channels=32,
                 out_channels=64, 
                 kernel_size=3, 
@@ -69,7 +68,7 @@ class Darknet53(nn.Module):
                 dropout_probability=dropout_probability
             ),
             DarknetResidualBlock(64),
-            ConvLayer(
+            BatchConvLayer(
                 in_channels=64,
                 out_channels=128, 
                 kernel_size=3, 
@@ -82,7 +81,7 @@ class Darknet53(nn.Module):
                 dropout_probability=dropout_probability
             ),
             self._get_residual_layer_stack(128, 2),
-            ConvLayer(
+            BatchConvLayer(
                 in_channels=128,
                 out_channels=256, 
                 kernel_size=3, 
@@ -95,7 +94,7 @@ class Darknet53(nn.Module):
                 dropout_probability=dropout_probability
             ),
             self._get_residual_layer_stack(256, 8),
-            ConvLayer(
+            BatchConvLayer(
                 in_channels=256,
                 out_channels=512, 
                 kernel_size=3, 
@@ -108,7 +107,7 @@ class Darknet53(nn.Module):
                 dropout_probability=dropout_probability
             ),
             self._get_residual_layer_stack(512, 8),
-            ConvLayer(
+            BatchConvLayer(
                 in_channels=512,
                 out_channels=1024, 
                 kernel_size=3, 
