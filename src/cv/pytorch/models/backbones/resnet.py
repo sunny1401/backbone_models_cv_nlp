@@ -7,7 +7,7 @@ from torch import nn
 import torch.nn as nn
 from typing import Optional, Dict
 from torch import nn
-from src.cv.pytorch.models.architecture_cutomisation import ConvLayer, get_activation
+from src.cv.pytorch.models.architecture_cutomisation import BatchConvLayer, get_activation
 
 
 class ResnetBasicBlock(nn.Module):
@@ -33,7 +33,7 @@ class ResnetBasicBlock(nn.Module):
         use_leaky_relu = use_leaky_relu
         dropout_probability = dropout_probability
 
-        self.conv1 = ConvLayer(
+        self.conv1 = BatchConvLayer(
             in_channels=in_channels,
             out_channels=out_channels,
             kernel_size=(3, 3),
@@ -45,7 +45,7 @@ class ResnetBasicBlock(nn.Module):
             batch_norm_momentum=batch_norm_momentum,
             dropout_probability=dropout_probability
         )
-        self.conv2 = ConvLayer(
+        self.conv2 = BatchConvLayer(
             in_channels=out_channels,
             out_channels=out_channels,
             kernel_size=(3, 3),
@@ -63,7 +63,7 @@ class ResnetBasicBlock(nn.Module):
 
         if check_for_downsample and (stride != 1 or in_channels != self.expansion * out_channels):
             self.downsample = nn.Sequential(
-                ConvLayer(
+                BatchConvLayer(
                     in_channels=in_channels,
                     out_channels=out_channels,
                     kernel_size=(1, 1),
@@ -118,7 +118,7 @@ class ResnetBottleneckBlock(nn.Module):
         self._batch_norm_momentum = backpropagation_relu_details.get("batch_norm_momentum", 0.1)
         self._use_leaky_relu = use_leaky_relu
 
-        self.conv1 = ConvLayer(
+        self.conv1 = BatchConvLayer(
             in_channels=in_channels,
             out_channels=out_channels,
             kernel_size=(1, 1),
@@ -129,7 +129,7 @@ class ResnetBottleneckBlock(nn.Module):
             dropout_probability=dropout_probability
         )
 
-        self.conv2 = ConvLayer(
+        self.conv2 = BatchConvLayer(
             in_channels=out_channels,
             out_channels=out_channels,
             kernel_size=(3, 3),
@@ -142,7 +142,7 @@ class ResnetBottleneckBlock(nn.Module):
             dropout_probability=dropout_probability
         )
 
-        self.conv3 = ConvLayer(
+        self.conv3 = BatchConvLayer(
             in_channels=out_channels,
             out_channels=out_channels * self.expansion,
             kernel_size=(1, 1),
@@ -158,7 +158,7 @@ class ResnetBottleneckBlock(nn.Module):
 
         if check_for_downsample and (stride != 1 or in_channels != self.expansion * out_channels):
             self.downsample = nn.Sequential(
-                ConvLayer(
+                BatchConvLayer(
                     in_channels=in_channels,
                     out_channels=out_channels * self.expansion,
                     kernel_size=(1, 1),
@@ -224,7 +224,7 @@ class VanillaResnet(nn.Module):
         self._bottleneck_block_count = 1
         self._required_input_channels = 64
 
-        self.conv1 = ConvLayer(
+        self.conv1 = BatchConvLayer(
             in_channels=in_channels,
             out_channels=self._required_input_channels,
             kernel_size=(7,7),
