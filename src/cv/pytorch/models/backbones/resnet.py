@@ -7,7 +7,9 @@ from torch import nn
 import torch.nn as nn
 from typing import Optional, Dict
 from torch import nn
-from src.cv.pytorch.models.architecture_cutomisation import BatchConvLayer, get_activation
+from src.cv.pytorch.models.architecture_customisation import (
+    BatchConvLayer, get_activation
+)
 
 
 class ResnetBasicBlock(nn.Module):

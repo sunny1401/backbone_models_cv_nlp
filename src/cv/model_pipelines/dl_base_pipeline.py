@@ -91,12 +91,12 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
         self.validation_loss = []
 
         self._number_of_training_batches = int(
-            self.model_data_config.train_size/self._train_dataloader.batch_size
+            self.model_data_config.train_size/self.model_training_config.batch_size
         )
 
         if self._validation_dataloader:
             self._number_of_validation_batches = int(
-                self.model_data_config.validation_size/self._validation_dataloader.batch_size
+                self.model_data_config.validation_size/self.model_training_config.batch_size
             )
         else:
             self._number_of_validation_batches = 0
@@ -200,11 +200,11 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
         self.model.to(self.model_training_config.device)
         for epoch in tqdm(range(self.model_training_config.epochs), total=self.model_training_config.epochs):
             epoch_train_loss = self._fit_model()
-            logging.info(f"Train Loss for epoch {epoch}: {epoch_train_loss:.4f}")
+            logging.info(f"Train Loss for epoch {epoch + 1}: {epoch_train_loss:.4f}")
             self.train_loss.append(epoch_train_loss)
             if self._number_of_validation_batches:
                 epoch_validation_loss = self._validate_model()
-                logging.info(f"Validation Loss for epoch {epoch}: {epoch_validation_loss:.4f}")
+                logging.info(f"Validation Loss for epoch {epoch + 1}: {epoch_validation_loss:.4f}")
                 self.validation_loss.append(epoch_validation_loss)
 
 
@@ -220,37 +220,38 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
         plt.show()
         
     def save_model_data(self, model_path):
-        if not model_path.split(".")[-1] == "pkl":
-            raise ValueError(
-                "Please provide a pickle based path."
-            )
-        model_save_path = os.path.join(self.model_data_config.model_save_dir, model_path)
-        os.makedirs(model_save_path, exist_ok=True)
-        torch.save(
-            {
-                'model_state_dict': self.best_model.state_dict(),
-                'optimizer_state_dict': self.optimizer.state_dict(),
-            }, 
-            os.path.join(
-                self.model_data_config.model_save_dir, model_path)
-        )
-        self._model_path = model_save_path
+        # if not model_path.split(".")[-1] == "pkl":
+        #     raise ValueError(
+        #         "Please provide a pickle based path."
+        #     )
+        # model_save_path = os.path.join(self.model_data_config.model_save_dir, model_path)
+        # os.makedirs(model_save_path, exist_ok=True)
+        # torch.save(
+        #     {
+        #         'model_state_dict': self.best_model.state_dict(),
+        #         'optimizer_state_dict': self.optimizer.state_dict(),
+        #     }, 
+        #     os.path.join(
+        #         self.model_data_config.model_save_dir, model_path)
+        # )
+        # self._model_path = model_save_path
+        pass
 
     def load_model_data(self):
+        pass
+        # if not os.path.exists(self._model_path):
+        #     self._model_path = os.path.join(
+        #         self.model_data_config.model_save_dir, self._model_path
+        #     )
+        #     if not os.path.exists(self._model_path):
+        #         raise FileNotFoundError(
+        #             "The model path provided doesn't exist. PLease provide a valid path"
+        #         )
 
-        if not os.path.exists(self._model_path):
-            self._model_path = os.path.join(
-                self.model_data_config.model_save_dir, self._model_path
-            )
-            if not os.path.exists(self._model_path):
-                raise FileNotFoundError(
-                    "The model path provided doesn't exist. PLease provide a valid path"
-                )
-
-        model_data = torch.load(self._model_path)
-        self.model.load_state_dict(model_data['model_state_dict'])
-        self._final_trained_model = self.model
-        self.optimizer.load_state_dict(model_data["optimizer_state_dict"])
+        # model_data = torch.load(self._model_path)
+        # self.model.load_state_dict(model_data['model_state_dict'])
+        # self._final_trained_model = self.model
+        # self.optimizer.load_state_dict(model_data["optimizer_state_dict"])
 
 
 

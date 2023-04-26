@@ -1,4 +1,6 @@
-from src.cv.pytorch.models.backbones.darknet_53 import Darknet53, DarknetResidualBlock
+from src.cv.pytorch.models.backbones.darknet_53 import (
+    Darknet53, DarknetResidualBlock
+)
 from src.cv.pytorch.models.backbones.feature_pyramid_network import FPN
 from torch import nn
 import torch
