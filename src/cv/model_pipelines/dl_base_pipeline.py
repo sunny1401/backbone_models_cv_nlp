@@ -218,42 +218,6 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
         if save_figure:
             plt.savefig(f"{self.model_data_config.loss_curve_path}")
         plt.show()
-        
-    def save_model_data(self, model_path):
-        # if not model_path.split(".")[-1] == "pkl":
-        #     raise ValueError(
-        #         "Please provide a pickle based path."
-        #     )
-        # model_save_path = os.path.join(self.model_data_config.model_save_dir, model_path)
-        # os.makedirs(model_save_path, exist_ok=True)
-        # torch.save(
-        #     {
-        #         'model_state_dict': self.best_model.state_dict(),
-        #         'optimizer_state_dict': self.optimizer.state_dict(),
-        #     }, 
-        #     os.path.join(
-        #         self.model_data_config.model_save_dir, model_path)
-        # )
-        # self._model_path = model_save_path
-        pass
-
-    def load_model_data(self):
-        pass
-        # if not os.path.exists(self._model_path):
-        #     self._model_path = os.path.join(
-        #         self.model_data_config.model_save_dir, self._model_path
-        #     )
-        #     if not os.path.exists(self._model_path):
-        #         raise FileNotFoundError(
-        #             "The model path provided doesn't exist. PLease provide a valid path"
-        #         )
-
-        # model_data = torch.load(self._model_path)
-        # self.model.load_state_dict(model_data['model_state_dict'])
-        # self._final_trained_model = self.model
-        # self.optimizer.load_state_dict(model_data["optimizer_state_dict"])
-
-
 
     @abstractmethod
     def initialize_optimization_parameters(self, lr, weights = None) -> Tuple:
@@ -277,3 +241,29 @@ class CNNTrainingPipeline(metaclass=ABCMeta):
             return self.model
         else:
             raise ValueError("Pleass train the model to get the best estimator")
+        
+    def save_checkoint(self, file_name):
+
+        if isinstance(self.model, torch.nn.DataParallel):
+            model = self.model.module
+        else:
+            model = self.model
+
+        checkpoint = dict(
+            model_state_dict = model.state_dict(),
+            optimizer_state_dict = self.optimizer.state_dict()
+        )
+
+        torch.save(checkpoint, file_name)
+
+    def load_checkpoint(self, file_name):
+
+        checkpoint = torch.load(
+            file_name, map_location=self.model_training_config.device)
+        
+        if isinstance(self.model, torch.nn.DataParallel):
+            self.model.module.load_state_dict(checkpoint['model_state_dict'])
+        else:
+            self.model.load_state_dict(checkpoint['model_state_dict'])
+
+        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
